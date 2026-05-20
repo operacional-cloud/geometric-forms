@@ -1,5 +1,6 @@
-import { getSessionAndProfile, getSupabaseServer } from '@/lib/supabase-server';
-import { apiFetch } from '@/lib/api';
+import { requireTenantMember } from '@/lib/server/auth';
+import { listForms, listLeads } from '@/lib/server/forms';
+import { supabaseAdmin } from '@/lib/server/supabase-admin';
 import { PageHeader, GradientButton, Empty } from '@/components/ui';
 import { FormsClient } from './forms-client';
 
@@ -17,31 +18,26 @@ type Form = {
 type Lead = { id: string; form_id: string; is_qualified: boolean; created_at: string };
 
 export default async function FormsPage() {
-  const { accessToken, profile } = await getSessionAndProfile();
+  const ctx = await requireTenantMember();
 
   let forms: Form[] = [];
   let leads: Lead[] = [];
   let tenantSlug: string | null = null;
-
   try {
-    const fr = await apiFetch<{ data: { forms: Form[] } }>('/api/forms', { token: accessToken });
-    forms = fr.data.forms;
-    const lr = await apiFetch<{ data: { leads: Lead[] } }>('/api/leads?limit=1000', { token: accessToken });
-    leads = lr.data.leads;
-
-    // Busca o slug do tenant pra montar URL pública
-    if (profile?.tenant_id) {
-      const supabase = await getSupabaseServer();
-      const { data: t } = await supabase
+    const fr = await listForms(ctx);
+    forms = fr.forms as Form[];
+    const lr = await listLeads(ctx, { limit: 1000 });
+    leads = lr.leads as Lead[];
+    if (ctx.profile.tenant_id) {
+      const { data: t } = await supabaseAdmin
         .from('tenants')
         .select('slug')
-        .eq('id', profile.tenant_id)
+        .eq('id', ctx.profile.tenant_id)
         .maybeSingle();
-      tenantSlug = t?.slug ?? null;
+      tenantSlug = (t as any)?.slug ?? null;
     }
   } catch {}
 
-  // Pre-compute por-form stats
   const stats = forms.map((f) => {
     const formLeads = leads.filter((l) => l.form_id === f.id);
     const qualified = formLeads.filter((l) => l.is_qualified).length;
@@ -68,12 +64,7 @@ export default async function FormsPage() {
       {forms.length === 0 ? (
         <Empty message="Nenhum formulário ainda." cta={{ href: '/dashboard/forms/new', label: 'Criar primeiro form' }} />
       ) : (
-        <FormsClient
-          forms={forms}
-          stats={stats}
-          totalLeads={leads.length}
-          tenantSlug={tenantSlug}
-        />
+        <FormsClient forms={forms} stats={stats} totalLeads={leads.length} tenantSlug={tenantSlug} />
       )}
     </main>
   );

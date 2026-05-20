@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { getSessionAndProfile } from '@/lib/supabase-server';
-import { apiFetch } from '@/lib/api';
+import { requireTenantMember } from '@/lib/server/auth';
+import { listForms, listLeads } from '@/lib/server/forms';
 import { PageHeader, Empty, ArrowRight } from '@/components/ui';
 import { getLeadName, getLeadPhone, getLeadEmail, whatsappLink, formatPhone } from '@/lib/contact';
 
@@ -19,14 +19,14 @@ type Lead = {
 type Form = { id: string; title: string; fields: any[] };
 
 export default async function LeadsPage() {
-  const { accessToken } = await getSessionAndProfile();
+  const ctx = await requireTenantMember();
   let leads: Lead[] = [];
   let forms: Form[] = [];
   try {
-    const r = await apiFetch<{ data: { leads: Lead[] } }>('/api/leads?limit=500', { token: accessToken });
-    leads = r.data.leads;
-    const fr = await apiFetch<{ data: { forms: Form[] } }>('/api/forms', { token: accessToken });
-    forms = fr.data.forms;
+    const r = await listLeads(ctx, { limit: 500 });
+    leads = r.leads as Lead[];
+    const fr = await listForms(ctx);
+    forms = fr.forms as Form[];
   } catch {}
 
   const formMap = new Map(forms.map((f) => [f.id, f]));
@@ -106,10 +106,7 @@ export default async function LeadsPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="btn !py-1 !px-2 !text-[11px] !rounded-md"
-                          style={{
-                            background: 'linear-gradient(180deg, #25D366 0%, #128C7E 100%)',
-                            color: '#fff',
-                          }}
+                          style={{ background: 'linear-gradient(180deg, #25D366 0%, #128C7E 100%)', color: '#fff' }}
                         >
                           chamar ↗
                         </a>

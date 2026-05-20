@@ -1,6 +1,5 @@
 import { z } from 'zod';
 
-// ---- primitivos ------------------------------------------------------------
 const slug = z
   .string()
   .min(2)
@@ -9,7 +8,6 @@ const slug = z
 
 const hexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'cor deve estar em formato hex (#RRGGBB)');
 
-// ---- field schema (recursivo por tipo) -------------------------------------
 const fieldOption = z.object({
   label: z.string().min(1).max(200),
   value: z.string().min(1).max(100),
@@ -34,6 +32,7 @@ export const formFieldSchema = z
     order: z.number().int().nonnegative().optional(),
     options: z.array(fieldOption).optional(),
     validation: fieldValidation,
+    system: z.boolean().optional(),
   })
   .superRefine((field, ctx) => {
     const needsOptions = ['radio', 'checkbox', 'select'].includes(field.type);
@@ -46,7 +45,6 @@ export const formFieldSchema = z
     }
   });
 
-// ---- admin: criar tenant + owner -------------------------------------------
 export const tenantCreateSchema = z.object({
   name: z.string().min(1).max(200),
   slug,
@@ -68,7 +66,6 @@ export const createTenantPayloadSchema = z.object({
   owner: ownerCreateSchema,
 });
 
-// ---- forms ------------------------------------------------------------------
 export const formSaveSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
@@ -80,20 +77,17 @@ export const formSaveSchema = z.object({
   meta_dataset_id: z.string().optional().nullable(),
   qualification_threshold: z.number().int().nonnegative().optional().default(0),
   is_active: z.boolean().optional().default(true),
-  // Tela de início + tela de obrigado (white-label)
   cover_image_url: z.string().url().max(2000).optional().nullable(),
   whatsapp_link: z.string().url().max(2000).optional().nullable(),
   success_button_label: z.string().max(80).optional().nullable(),
+  tenant_id: z.string().uuid().optional(), // admin pode passar pra criar em nome de outro tenant
 });
 
 export const formUpdateSchema = formSaveSchema.partial();
 
-// ---- lead público -----------------------------------------------------------
 export const leadSubmitSchema = z.object({
   form_id: z.string().uuid(),
   event_id: z.string().min(1).max(128),
-  // is_partial: true = lead salvo após nome+telefone (incompleto)
-  // false ou ausente = submissão final (completo)
   is_partial: z.boolean().optional().default(false),
   answers: z.record(z.string(), z.any()),
   tracking: z
@@ -108,12 +102,12 @@ export const leadSubmitSchema = z.object({
       utm_term: z.string().optional(),
       user_agent: z.string().optional(),
       page_url: z.string().url().optional(),
+      session_id: z.string().optional(),
     })
     .optional()
     .default({}),
 });
 
-// ---- evento público --------------------------------------------------------
 export const eventTrackSchema = z.object({
   form_id: z.string().uuid(),
   event_type: z.enum(['view', 'start', 'field_complete']),

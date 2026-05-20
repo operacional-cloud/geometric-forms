@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { getSessionAndProfile } from '@/lib/supabase-server';
-import { apiFetch } from '@/lib/api';
+import { requireAdmin } from '@/lib/server/auth';
+import { listTenants } from '@/lib/server/tenants';
 import {
   PageHeader, GradientButton, ArrowRight, StatusBadge, Empty,
 } from '@/components/ui';
@@ -16,12 +16,12 @@ type Tenant = {
 };
 
 export default async function AdminHome() {
-  const { accessToken } = await getSessionAndProfile();
+  await requireAdmin();
   let tenants: Tenant[] = [];
   let error: string | null = null;
   try {
-    const r = await apiFetch<{ data: { tenants: Tenant[] } }>('/api/admin/tenants', { token: accessToken });
-    tenants = r.data.tenants;
+    const r = await listTenants();
+    tenants = r.tenants as Tenant[];
   } catch (e: any) { error = e.message; }
 
   const totals = {
@@ -39,9 +39,7 @@ export default async function AdminHome() {
         action={<GradientButton href="/admin/new">+ Novo cliente <ArrowRight /></GradientButton>}
       />
 
-      {error && (
-        <div className="badge badge-danger mb-8">ERRO: {error}</div>
-      )}
+      {error && <div className="badge badge-danger mb-8">ERRO: {error}</div>}
 
       {tenants.length === 0 && !error && (
         <Empty message="Nenhum cliente cadastrado ainda." cta={{ href: '/admin/new', label: 'Cadastrar o primeiro' }} />

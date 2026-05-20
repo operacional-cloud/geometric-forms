@@ -1,59 +1,34 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getSessionAndProfile } from '@/lib/supabase-server';
-import { apiFetch } from '@/lib/api';
+import { requireAdmin } from '@/lib/server/auth';
+import { listTenants } from '@/lib/server/tenants';
+import { listForms, listLeads } from '@/lib/server/forms';
 import {
   PageHeader, GhostButton, StatusBadge, Kicker, Empty,
 } from '@/components/ui';
 
 type Tenant = {
-  id: string;
-  name: string;
-  slug: string;
-  plan: string;
+  id: string; name: string; slug: string; plan: string;
   status: 'active' | 'trial' | 'inactive';
-  primary_color: string;
-  secondary_color: string;
-  logo_url: string | null;
-  created_at: string;
-  updated_at: string;
+  primary_color: string; secondary_color: string;
+  logo_url: string | null; created_at: string; updated_at: string;
 };
-type Form = {
-  id: string;
-  tenant_id: string;
-  title: string;
-  slug: string;
-  is_active: boolean;
-  qualification_threshold: number;
-  fields: any[];
-  created_at: string;
-};
-type Lead = {
-  id: string;
-  tenant_id: string;
-  form_id: string;
-  lead_score: number;
-  is_qualified: boolean;
-  status: string;
-  created_at: string;
-};
+type Form = { id: string; tenant_id: string; title: string; slug: string; is_active: boolean; qualification_threshold: number; fields: any[]; created_at: string };
+type Lead = { id: string; tenant_id: string; form_id: string; lead_score: number; is_qualified: boolean; status: string; created_at: string };
 
 export default async function TenantDetailPage({ params }: { params: { id: string } }) {
-  const { accessToken } = await getSessionAndProfile();
+  const ctx = await requireAdmin();
 
   let tenant: Tenant | null = null;
   let forms: Form[] = [];
   let leads: Lead[] = [];
   try {
-    const tr = await apiFetch<{ data: { tenants: Tenant[] } }>('/api/admin/tenants', {
-      token: accessToken,
-    });
-    tenant = tr.data.tenants.find((t) => t.id === params.id) ?? null;
-    // Admin enxerga tudo via RLS — filtra client-side
-    const fr = await apiFetch<{ data: { forms: Form[] } }>('/api/forms', { token: accessToken });
-    forms = fr.data.forms.filter((f) => f.tenant_id === params.id);
-    const lr = await apiFetch<{ data: { leads: Lead[] } }>('/api/leads?limit=1000', { token: accessToken });
-    leads = lr.data.leads.filter((l) => l.tenant_id === params.id);
+    const tr = await listTenants();
+    tenant = (tr.tenants as Tenant[]).find((t) => t.id === params.id) ?? null;
+    const fr = await listForms(ctx);
+    forms = (fr.forms as Form[]).filter((f) => f.tenant_id === params.id);
+    const lr = await listLeads(ctx, { limit: 1000 });
+    leads = (lr.leads as Lead[]).filter((l) => l.tenant_id === params.id);
   } catch {}
 
   if (!tenant) notFound();
@@ -75,12 +50,11 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
         action={
           <div className="flex items-center gap-2">
             <StatusBadge status={tenant.status} />
-            <GhostButton href="/admin">← Tenants</GhostButton>
+            <GhostButton href="/admin">← Clientes</GhostButton>
           </div>
         }
       />
 
-      {/* IDENTITY CARD */}
       <section className="glass-static p-6 lg:p-7 mb-8 flex items-center gap-6 flex-wrap">
         <div className="flex items-center gap-4">
           {tenant.logo_url ? (
@@ -111,7 +85,6 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
         </div>
       </section>
 
-      {/* STATS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <BigStat label="Formulários" value={forms.length} sub={`${activeForms} ativos`} />
         <BigStat label="Leads" value={leads.length} sub="todos os tempos" />
@@ -124,7 +97,6 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
         />
       </div>
 
-      {/* FORMS */}
       <section className="mb-12">
         <div className="flex items-center justify-between pb-4 border-b border-line mb-4 gap-4 flex-wrap">
           <Kicker>FORMULÁRIOS · {forms.length}</Kicker>
@@ -165,18 +137,11 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
                     <Mini label="Thr" value={f.qualification_threshold} />
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-2">
-                    <Link
-                      href={`/dashboard/forms/${f.id}`}
-                      className="btn btn-ghost !py-1.5 !text-xs justify-center"
-                    >
+                    <Link href={`/dashboard/forms/${f.id}`} className="btn btn-ghost !py-1.5 !text-xs justify-center">
                       Editar
                     </Link>
-                    <a
-                      href={`/f/${tenant.slug}/${f.slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-ghost !py-1.5 !text-xs justify-center"
-                    >
+                    <a href={`/f/${tenant.slug}/${f.slug}`} target="_blank" rel="noopener noreferrer"
+                       className="btn btn-ghost !py-1.5 !text-xs justify-center">
                       Abrir ↗
                     </a>
                   </div>
@@ -187,7 +152,6 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
         )}
       </section>
 
-      {/* RECENT LEADS */}
       <section>
         <div className="flex items-center justify-between pb-4 border-b border-line mb-4">
           <Kicker>LEADS · recentes</Kicker>
@@ -242,29 +206,17 @@ function Field({ label, value, mono }: { label: string; value: React.ReactNode; 
     </div>
   );
 }
-
-function BigStat({
-  label, value, sub, tone, small,
-}: {
-  label: string;
-  value: any;
-  sub?: string;
-  tone?: 'emerald';
-  small?: boolean;
-}) {
+function BigStat({ label, value, sub, tone, small }: { label: string; value: any; sub?: string; tone?: 'emerald'; small?: boolean }) {
   return (
     <div className="glass-static p-5">
       <div className="kicker">{label}</div>
-      <div className={`mt-3 font-semibold tracking-tightest tabular ${
-        small ? 'text-2xl' : 'text-4xl'
-      } ${tone === 'emerald' ? 'text-emerald' : 'stat-number'}`}>
+      <div className={`mt-3 font-semibold tracking-tightest tabular ${small ? 'text-2xl' : 'text-4xl'} ${tone === 'emerald' ? 'text-emerald' : 'stat-number'}`}>
         {value}
       </div>
       {sub && <div className="mt-1 text-xs text-fg-muted">{sub}</div>}
     </div>
   );
 }
-
 function Mini({ label, value }: { label: string; value: any }) {
   return (
     <div className="glass-inner py-2 px-2">
@@ -273,7 +225,6 @@ function Mini({ label, value }: { label: string; value: any }) {
     </div>
   );
 }
-
 function relativeDate(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diff / 60000);

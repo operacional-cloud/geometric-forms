@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { getSessionAndProfile } from '@/lib/supabase-server';
-import { apiFetch } from '@/lib/api';
+import { requireTenantMember } from '@/lib/server/auth';
+import { listForms, listLeads } from '@/lib/server/forms';
 import { ArrowRight, Sparkline, Kicker, Empty } from '@/components/ui';
 import { AnimatedCounter } from '@/components/AnimatedCounter';
 
@@ -8,7 +8,6 @@ type Form = { id: string; title: string; slug: string; is_active: boolean; quali
 type Lead = { id: string; lead_score: number; is_qualified: boolean; status: string; created_at: string; form_id: string };
 
 function bucketize(leads: Lead[]) {
-  // 14 dias atrás → hoje, contagem por dia
   const days: number[] = Array.from({ length: 14 }, () => 0);
   const days_q: number[] = Array.from({ length: 14 }, () => 0);
   const today = new Date();
@@ -26,15 +25,15 @@ function bucketize(leads: Lead[]) {
 }
 
 export default async function DashboardOverview() {
-  const { profile, accessToken } = await getSessionAndProfile();
+  const ctx = await requireTenantMember();
 
   let forms: Form[] = [];
   let leads: Lead[] = [];
   try {
-    const fr = await apiFetch<{ data: { forms: Form[] } }>('/api/forms', { token: accessToken });
-    forms = fr.data.forms;
-    const lr = await apiFetch<{ data: { leads: Lead[] } }>('/api/leads?limit=500', { token: accessToken });
-    leads = lr.data.leads;
+    const fr = await listForms(ctx);
+    forms = fr.forms as Form[];
+    const lr = await listLeads(ctx, { limit: 500 });
+    leads = lr.leads as Lead[];
   } catch {}
 
   const totalLeads = leads.length;
@@ -60,7 +59,7 @@ export default async function DashboardOverview() {
         <h1 className="mt-4 text-4xl md:text-5xl font-semibold tracking-tightest">
           Olá,{' '}
           <span className="text-brand-gradient italic font-display font-normal">
-            {(profile?.full_name || 'cliente').split(' ')[0]}.
+            {(ctx.profile.full_name || 'cliente').split(' ')[0]}.
           </span>
         </h1>
         <p className="mt-2 text-fg-muted">Status do seu funil de qualificação.</p>
@@ -84,7 +83,6 @@ export default async function DashboardOverview() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-4">
-        {/* RECENT FORMS */}
         <section className="glass-static p-6">
           <div className="flex items-center justify-between pb-4 border-b border-line">
             <Kicker>FORMULÁRIOS · recentes</Kicker>
@@ -119,7 +117,6 @@ export default async function DashboardOverview() {
           )}
         </section>
 
-        {/* RECENT LEADS */}
         <section className="glass-static p-6">
           <div className="flex items-center justify-between pb-4 border-b border-line">
             <Kicker>LEADS · recentes</Kicker>

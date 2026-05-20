@@ -1,92 +1,56 @@
 # Deploy — Geometric Forms
 
-Arquitetura de produção:
+Arquitetura final:
 
 ```
-Vercel (Next.js front)  ←→  Railway (Express back)  ←→  Supabase
+Vercel (Next.js: frontend + API routes)  ←→  Supabase
 ```
 
-## Pré-requisitos
+Tudo num projeto só. Sem servidor extra, sem CORS.
 
-- Conta no [GitHub](https://github.com) (você já tem login Google? Loga com ele)
-- Conta no [Vercel](https://vercel.com) (loga com GitHub)
-- Conta no [Railway](https://railway.app) (loga com GitHub)
-- Código commitado num repo (público OU privado, ambos funcionam)
+## Passo 1 — Subir código no GitHub
 
-Todos free.
+Já feito. Repo: https://github.com/operacional-cloud/geometric-forms
 
-## Passo 1 — Subir o código no GitHub
-
-```bash
-cd C:\Users\lucas\geometric-forms
-
-git add .
-git commit -m "Initial commit"
-git branch -M main
-
-# Criar repo em https://github.com/new (ex: "geometric-forms"), copiar o URL,
-# então:
-git remote add origin https://github.com/SEU-USUARIO/geometric-forms.git
-git push -u origin main
-```
-
-## Passo 2 — Deploy do BACKEND (Railway)
-
-1. Entre em https://railway.com/new
-2. Clique em **Deploy from GitHub repo** → autorize → escolha o repo `geometric-forms`
-3. Quando perguntar o **Root directory**, deixe **vazio** (raiz do repo). Railway vai detectar o Node automaticamente.
-4. Vá em **Settings → Variables** e cole as variáveis abaixo (uma por linha):
-
-```
-SUPABASE_URL=https://cslyxnpxlytzqjurhdmd.supabase.co
-SUPABASE_ANON_KEY=sb_publishable_BptIxGEzYo_3JdhVP_G8tg_h60wKbkf
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzbHl4bnB4bHl0enFqdXJoZG1kIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTA2NzU1MCwiZXhwIjoyMDk0NjQzNTUwfQ.riK-cYBZGXHqLWqlO56XRkXWXksm97dRGSOUDdHT5p0
-NODE_ENV=production
-```
-
-> **Importante:** `PORT` é fornecido pelo Railway automaticamente, **não setar manualmente**.
-
-5. Em **Settings → Networking → Public Networking**, clique em **Generate Domain**. Vai gerar algo como `geometric-forms-production.up.railway.app`. **Copie esse URL** — vai usar no Vercel.
-6. Aguarde o build (~2 min). Quando ficar verde, teste: `https://SEU-URL.up.railway.app/health` deve retornar `{"ok":true}`.
-
-## Passo 3 — Deploy do FRONTEND (Vercel)
+## Passo 2 — Deploy no Vercel
 
 1. Entre em https://vercel.com/new
-2. **Import Git Repository** → escolha `geometric-forms`
-3. Em **Configure Project**:
-   - **Root Directory**: clique em "Edit" e escolha `web` (importante!)
-   - **Framework Preset**: deve detectar Next.js automaticamente
-4. Em **Environment Variables**, cole:
+2. Logue com o **mesmo GitHub** (`operacional-cloud`)
+3. Importe o repo `geometric-forms`
+4. Em **Configure Project**:
+   - **Root Directory**: clique em "Edit" e escolha **`web`** (obrigatório — o Next.js fica nessa subpasta)
+   - **Framework Preset**: detecta Next.js automaticamente
+   - **Build Command / Output**: deixa default
+5. Em **Environment Variables**, cole:
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://cslyxnpxlytzqjurhdmd.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_BptIxGEzYo_3JdhVP_G8tg_h60wKbkf
-NEXT_PUBLIC_API_BASE_URL=https://SEU-URL.up.railway.app
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzbHl4bnB4bHl0enFqdXJoZG1kIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTA2NzU1MCwiZXhwIjoyMDk0NjQzNTUwfQ.riK-cYBZGXHqLWqlO56XRkXWXksm97dRGSOUDdHT5p0
 ```
 
-> Substitua `SEU-URL.up.railway.app` pelo URL que o Railway gerou no Passo 2.5.
+> O service_role key fica **server-side only** (nunca exposto ao browser) — é usado dentro das route handlers e server components.
 
-5. Clique em **Deploy**. ~2 min.
-6. Vai gerar um URL tipo `https://geometric-forms-web.vercel.app`. **É o seu sistema online.**
+6. Clica **Deploy**. ~2-3 min de build.
+7. Vercel gera URL `https://geometric-forms-web-xxxx.vercel.app`
 
-## Passo 4 — Testar
+## Passo 3 — Testar
 
-Abre em outro computador (ou celular, etc):
+Abre em qualquer computador/celular:
 
-- **Sistema:** `https://geometric-forms-web.vercel.app`
+- **Sistema:** sua URL Vercel
 - **Login Admin:** `admin@admin.com` / `123456`
-- **Form público:** `https://geometric-forms-web.vercel.app/f/pillar-consorcios/qualificacao-consorcio`
+- **Login Cliente:** `carlos@pillar.com` / `SenhaForte123!`
+- **Form público:** `<sua-url>/f/pillar-consorcios/qualificacao-consorcio`
 
-## Manutenção
+## Atualizar código
 
-- **Atualizar código** — qualquer `git push origin main` redeploya os 2 automaticamente
-- **Logs do backend** — Railway dashboard → projeto → Deployments → View Logs
-- **Logs do frontend** — Vercel dashboard → projeto → Deployments → View Function Logs
-- **Custom domain** — Vercel/Railway permitem adicionar `forms.geometricagency.com` etc. nas configurações do projeto, dão DNS pra apontar.
+Qualquer `git push origin master` redeploya automaticamente no Vercel (~1-2 min).
 
-## Trocar de senha do admin / regenerar tokens
+## Custom domain
 
-Se quiser regenerar credenciais (recomendado pra prod):
-1. Supabase Dashboard → Settings → API → **Rotate** service_role
-2. Atualize `SUPABASE_SERVICE_ROLE_KEY` no Railway → ele redeploya sozinho
-3. Trocar senha do admin: Supabase Dashboard → Authentication → Users → `admin@admin.com` → ⋯ → Send password recovery (ou setar nova senha direto)
+Vercel → seu projeto → **Settings → Domains → Add**. Aponta o DNS conforme instruções (ex: `forms.geometricagency.com`).
+
+## Logs
+
+Vercel → seu projeto → **Logs** mostra requests + erros das route handlers em tempo real.

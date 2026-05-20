@@ -1,24 +1,24 @@
-// Helper para chamar a API backend (Express na porta 3000) com JWT do Supabase.
+// Cliente HTTP pras Route Handlers internas (mesma origem).
+// Cookies de autenticação viajam automaticamente — sem necessidade de Authorization header.
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+export const API_BASE = ''; // relativo (mesma origem)
 
 export async function apiFetch<T = any>(
   path: string,
   opts: {
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
     body?: any;
+    /** @deprecated mantido pra compat; ignorado (auth vem por cookie) */
     token?: string | null;
     cache?: RequestCache;
-  } = {}
+  } = {},
 ): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: opts.method || 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(opts.token ? { Authorization: `Bearer ${opts.token}` } : {}),
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: opts.body ? JSON.stringify(opts.body) : undefined,
     cache: opts.cache || 'no-store',
+    credentials: 'include', // garante envio de cookies em cross-origin (no-op same-origin)
   });
 
   const json = await res.json().catch(() => ({}));

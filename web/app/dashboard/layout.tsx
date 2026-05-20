@@ -1,19 +1,20 @@
 import { redirect } from 'next/navigation';
-import { getSessionAndProfile } from '@/lib/supabase-server';
+import { getAuthOrNull } from '@/lib/server/auth';
 import { Header } from '@/components/Header';
 import { LogoutButton } from '@/components/LogoutButton';
 import { NavTabs } from '@/components/NavTabs';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, profile } = await getSessionAndProfile();
-  if (!user) redirect('/login?next=/dashboard');
+  const ctx = await getAuthOrNull();
+  if (!ctx) redirect('/login?next=/dashboard');
+
   return (
     <div className="min-h-screen">
       <Header
         variant="dashboard"
         rightSlot={
           <>
-            <span className="hidden sm:inline">{profile?.full_name || user.email}</span>
+            <span className="hidden sm:inline">{ctx.profile?.full_name || ctx.user.email}</span>
             <LogoutButton />
           </>
         }

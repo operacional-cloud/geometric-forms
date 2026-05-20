@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { getSessionAndProfile } from '@/lib/supabase-server';
-import { apiFetch } from '@/lib/api';
+import { requireTenantMember } from '@/lib/server/auth';
+import { listForms, listLeads } from '@/lib/server/forms';
 import { PageHeader, GhostButton, Kicker, Empty } from '@/components/ui';
 import { LeadCard } from './lead-card';
 
@@ -18,6 +18,7 @@ type Lead = {
   answers: Record<string, any>;
   lead_score: number;
   is_qualified: boolean;
+  is_complete?: boolean;
   status: string;
   utm_source: string | null;
   utm_medium: string | null;
@@ -27,18 +28,15 @@ type Lead = {
 };
 
 export default async function FormLeadsPage({ params }: { params: { id: string } }) {
-  const { accessToken } = await getSessionAndProfile();
+  const ctx = await requireTenantMember();
   let form: Form | null = null;
   let leads: Lead[] = [];
   try {
-    const fr = await apiFetch<{ data: { forms: Form[] } }>('/api/forms', { token: accessToken });
-    form = fr.data.forms.find((f) => f.id === params.id) ?? null;
+    const fr = await listForms(ctx);
+    form = (fr.forms as Form[]).find((f) => f.id === params.id) ?? null;
     if (form) {
-      const lr = await apiFetch<{ data: { leads: Lead[] } }>(
-        `/api/leads?form_id=${form.id}&limit=500`,
-        { token: accessToken }
-      );
-      leads = lr.data.leads;
+      const lr = await listLeads(ctx, { limit: 500, formId: form.id });
+      leads = lr.leads as Lead[];
     }
   } catch {}
   if (!form) notFound();
@@ -63,10 +61,7 @@ export default async function FormLeadsPage({ params }: { params: { id: string }
       />
 
       {leads.length === 0 ? (
-        <Empty
-          message="Nenhum lead respondeu esse formulário ainda."
-          cta={{ href: '/dashboard/forms', label: 'Ver formulários' }}
-        />
+        <Empty message="Nenhum lead respondeu esse formulário ainda." cta={{ href: '/dashboard/forms', label: 'Ver formulários' }} />
       ) : (
         <div className="grid lg:grid-cols-2 gap-4">
           {leads.map((lead, i) => (
@@ -75,7 +70,6 @@ export default async function FormLeadsPage({ params }: { params: { id: string }
         </div>
       )}
 
-      {/* Footer note */}
       <div className="mt-12 glass-static p-4 flex items-center gap-3 text-sm text-fg-muted">
         <Kicker>WHATSAPP</Kicker>
         <span>Botões "Falar no WhatsApp" usam o número do campo <code className="text-brand">telefone</code> com prefixo +55 quando faltar código de país.</span>
