@@ -69,19 +69,23 @@ export async function getPlanForTenant(tenantId: string): Promise<Plan | null> {
 }
 
 async function countForms(tenantId: string): Promise<number> {
-  const { count } = await supabaseAdmin
+  const { count, error } = await supabaseAdmin
     .from('forms')
     .select('id', { count: 'exact', head: true })
     .eq('tenant_id', tenantId);
+  // Propaga erro: o caller (assert) trata como fail-open MAS logado — em vez de
+  // silenciosamente virar 0 e liberar como se o tenant tivesse zero formulários.
+  if (error) throw new Error(`countForms: ${error.message}`);
   return count || 0;
 }
 
 async function countLeadsThisMonth(tenantId: string): Promise<number> {
-  const { count } = await supabaseAdmin
+  const { count, error } = await supabaseAdmin
     .from('leads')
     .select('id', { count: 'exact', head: true })
     .eq('tenant_id', tenantId)
     .gte('created_at', startOfCurrentMonthUTC());
+  if (error) throw new Error(`countLeadsThisMonth: ${error.message}`);
   return count || 0;
 }
 

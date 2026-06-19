@@ -176,9 +176,11 @@ export async function submitPublicLead(input: unknown, requestHeaders: Headers) 
     if (error) throw new AppError(`Falha ao atualizar lead: ${error.message}`, { status: 500 });
     lead = data;
   } else {
-    // Enforcement de plano: novo lead conta contra max_leads_mes. Updates
-    // (upsert por event_id, branch acima) não criam linha nova, então não contam.
-    await assertWithinLeadLimit(form.tenant_id);
+    // Enforcement de plano: só bloqueia em submissão COMPLETA. Autosave parcial
+    // (visitante apenas começando a digitar) nunca é barrado — senão a 1ª
+    // interação de um lead novo viraria 403 e perderíamos a conversão. A linha
+    // parcial ainda conta na cota do mês; a checagem ocorre quando o lead completa.
+    if (!isPartial) await assertWithinLeadLimit(form.tenant_id);
 
     const { data, error } = await supabaseAdmin
       .from('leads')

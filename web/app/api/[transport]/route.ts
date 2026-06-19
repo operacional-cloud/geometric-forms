@@ -55,7 +55,7 @@ const mcpHandler = createMcpHandler(
         tenant_id: z.string().uuid().optional().describe('Filtra por cliente (UUID do tenant).'),
         form_id: z.string().uuid().optional().describe('Filtra por formulário (UUID).'),
         qualified: z.boolean().optional().describe('true = só qualificados; false = só não-qualificados; omitido = todos.'),
-        since: z.string().optional().describe('Data ISO (YYYY-MM-DD) — só leads criados a partir dela.'),
+        since: z.string().regex(/^\d{4}-\d{2}-\d{2}([T ].*)?$/, 'Use data ISO (YYYY-MM-DD).').optional().describe('Data ISO (YYYY-MM-DD) — só leads criados a partir dela.'),
         limit: z.number().int().min(1).max(200).optional().describe('Máximo de leads a retornar (padrão 50, teto 200).'),
       },
       async (args) => {
@@ -157,7 +157,7 @@ const mcpHandler = createMcpHandler(
       'Estatísticas de leads: total, qualificados e taxa de qualificação (%). Filtros opcionais por cliente (tenant_id) e data (since).',
       {
         tenant_id: z.string().uuid().optional().describe('Filtra por cliente (UUID do tenant).'),
-        since: z.string().optional().describe('Data ISO (YYYY-MM-DD) — conta só a partir dela.'),
+        since: z.string().regex(/^\d{4}-\d{2}-\d{2}([T ].*)?$/, 'Use data ISO (YYYY-MM-DD).').optional().describe('Data ISO (YYYY-MM-DD) — conta só a partir dela.'),
       },
       async (args) => {
         const countQuery = (qualifiedOnly: boolean) => {
@@ -168,7 +168,8 @@ const mcpHandler = createMcpHandler(
           return q;
         };
         const [totalRes, qualRes] = await Promise.all([countQuery(false), countQuery(true)]);
-        if (totalRes.error) return jsonText({ error: totalRes.error.message });
+        const countErr = totalRes.error || qualRes.error;
+        if (countErr) return jsonText({ error: countErr.message });
         const total = totalRes.count || 0;
         const qualificados = qualRes.count || 0;
         const taxa = total > 0 ? Math.round((qualificados / total) * 10000) / 100 : 0;
