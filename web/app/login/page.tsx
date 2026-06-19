@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { getSupabaseBrowser } from '@/lib/supabase-browser';
 import { Header } from '@/components/Header';
-import { ArrowRight, Kicker } from '@/components/ui';
+import { ArrowRight, Kicker, PasswordInput } from '@/components/ui';
 import { Logo } from '@/components/Logo';
 
 export default function LoginPage() {
@@ -86,14 +86,14 @@ function LoginInner() {
                 </label>
                 <label className="block">
                   <span className="kicker">Senha</span>
-                  <input
-                    type="password"
-                    required
-                    className="input mt-2 font-mono"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                  />
+                  <div className="mt-2">
+                    <PasswordInput
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                    />
+                  </div>
                 </label>
 
                 {error && (

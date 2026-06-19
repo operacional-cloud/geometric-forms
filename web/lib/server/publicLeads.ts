@@ -2,6 +2,8 @@ import { supabaseAdmin } from './supabase-admin';
 import { leadSubmitSchema, eventTrackSchema } from './validators';
 import { calculateScore } from './leadScoring';
 import { AppError, NotFoundError, ValidationError } from './errors';
+import { fireWebhook } from './webhook';
+import { assertWithinLeadLimit } from './plans';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function isValidPhone(v: string): boolean {
@@ -135,7 +137,7 @@ export async function submitPublicLead(input: unknown, requestHeaders: Headers) 
 
   const { data: form, error: fErr } = await supabaseAdmin
     .from('forms')
-    .select('id, tenant_id, fields, qualification_threshold, is_active, settings, meta_pixel_id, meta_access_token, meta_dataset_id, whatsapp_link, success_button_label')
+    .select('id, tenant_id, fields, qualification_threshold, is_active, settings, meta_pixel_id, meta_access_token, meta_dataset_id, whatsapp_link, success_button_label, webhook_url')
     .eq('id', parsed.form_id)
     .maybeSingle();
   if (fErr) throw new AppError(fErr.message, { status: 500 });
@@ -174,6 +176,10 @@ export async function submitPublicLead(input: unknown, requestHeaders: Headers) 
     if (error) throw new AppError(`Falha ao atualizar lead: ${error.message}`, { status: 500 });
     lead = data;
   } else {
+    // Enforcement de plano: novo lead conta contra max_leads_mes. Updates
+    // (upsert por event_id, branch acima) não criam linha nova, então não contam.
+    await assertWithinLeadLimit(form.tenant_id);
+
     const { data, error } = await supabaseAdmin
       .from('leads')
       .insert({
@@ -228,6 +234,93 @@ export async function submitPublicLead(input: unknown, requestHeaders: Headers) 
     is_partial: isPartial,
     is_complete: lead.is_complete,
   }));
+
+  // Dispara webhook do formulário (fire-and-forget — não bloqueia resposta).
+  // Regra: SÓ dispara quando o lead completa o formulário. Parciais não chamam.
+  if ((form as any).webhook_url && !isPartial) {
+    const fields = ((form as any).fields as any[]) || [];
+    const answers: Record<string, any> = lead.answers || {};
+
+    // Limpa telefone: remove espaços, parênteses, traços e qualquer não-dígito.
+    // Garante prefixo 55 (Brasil) sem duplicar quando o usuário já incluiu.
+    // Ex: "(11) 99999-8888"  -> "5511999998888"
+    //     "+55 11 99999-8888" -> "5511999998888"
+    //     "+1 415 555 0000"   -> "14155550000" (mantém código existente se >=12 dígitos)
+    function cleanPhone(raw: any): string | null {
+      if (!raw) return null;
+      const digits = String(raw).replace(/\D/g, '');
+      if (!digits) return null;
+      // BR tem 12-13 dígitos com 55. Se já começa com 55 e tem comprimento de fone BR completo, não duplica.
+      if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) return digits;
+      // Outros países com código (10+ dígitos sem ser BR) — mantém como está
+      if (digits.length >= 11 && !digits.startsWith('55')) {
+        // Heurística: se não é BR padrão e já tem >=11 dígitos, assume que tem código de país
+        // Mas se forem 11 dígitos exatos e começam com 9 (celular BR sem DDI), ainda assim adiciona 55
+        if (digits.length === 11 || digits.length === 10) return '55' + digits;
+        return digits;
+      }
+      return '55' + digits;
+    }
+
+    // Resolve perguntas/respostas em formato legível (label + valor):
+    // - Exclui campos de sistema (nome/telefone) — vão no topo do payload
+    // - Para select/radio/checkbox, troca o "value" interno pelo "label" da opção
+    const responses = fields
+      .filter((f) => !f.system && f.id !== 'nome' && f.id !== 'telefone')
+      .map((f) => {
+        let answer: any = answers[f.id];
+        if (Array.isArray(f.options) && answer !== undefined && answer !== null && answer !== '') {
+          if (Array.isArray(answer)) {
+            answer = answer.map((v: any) => {
+              const opt = f.options.find((o: any) => String(o.value) === String(v));
+              return opt?.label || v;
+            });
+          } else {
+            const opt = f.options.find((o: any) => String(o.value) === String(answer));
+            answer = opt?.label || answer;
+          }
+        }
+        return {
+          question: f.label,
+          field_id: f.id,
+          type: f.type,
+          answer: answer ?? null,
+        };
+      })
+      .filter((r) => r.answer !== null && r.answer !== '');
+
+    fireWebhook((form as any).webhook_url, {
+      event: 'lead.completed',
+      form_id: form.id,
+      tenant_id: form.tenant_id,
+      lead: {
+        id: lead.id,
+        name: answers.nome || null,
+        phone: cleanPhone(answers.telefone),
+        email: answers.email || null,
+        responses,
+        lead_score: lead.lead_score,
+        is_qualified: lead.is_qualified,
+        status: lead.status,
+        utm: {
+          source: lead.utm_source,
+          medium: lead.utm_medium,
+          campaign: lead.utm_campaign,
+          content: lead.utm_content,
+          term: lead.utm_term,
+        },
+        meta: {
+          fbc: lead.meta_fbc,
+          fbp: lead.meta_fbp,
+          fbclid: lead.meta_click_id,
+        },
+        ip_address: lead.ip_address,
+        user_agent: lead.user_agent,
+        created_at: lead.created_at,
+      },
+      sent_at: new Date().toISOString(),
+    });
+  }
 
   return {
     lead_id: lead.id,

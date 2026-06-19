@@ -26,6 +26,8 @@ export type FormDraft = {
   cover_image_url?: string | null;
   whatsapp_link?: string | null;
   success_button_label?: string | null;
+  meta_pixel_id?: string | null;
+  webhook_url?: string | null;
 };
 
 const NEEDS_OPTIONS = new Set(['radio', 'checkbox', 'select']);
@@ -93,6 +95,8 @@ export function FormBuilder({
   const [coverImageUrl, setCoverImageUrl] = useState(initial?.cover_image_url ?? '');
   const [whatsappLink, setWhatsappLink] = useState(initial?.whatsapp_link ?? '');
   const [successButtonLabel, setSuccessButtonLabel] = useState(initial?.success_button_label ?? 'Quero agilizar');
+  const [metaPixelId, setMetaPixelId] = useState(initial?.meta_pixel_id ?? '');
+  const [webhookUrl, setWebhookUrl] = useState(initial?.webhook_url ?? '');
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -170,6 +174,8 @@ export function FormBuilder({
         cover_image_url: coverImageUrl.trim() || null,
         whatsapp_link: whatsappLink.trim() || null,
         success_button_label: successButtonLabel.trim() || null,
+        meta_pixel_id: metaPixelId.trim() || null,
+        webhook_url: webhookUrl.trim() || null,
       });
     } catch (e: any) {
       setError(e.message);
@@ -405,6 +411,38 @@ export function FormBuilder({
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
           )}
+        </div>
+
+        {/* ===== INTEGRAÇÕES ===== */}
+        <div className="glass-static p-6">
+          <Kicker>INTEGRAÇÕES</Kicker>
+          <label className="block mt-4">
+            <span className="text-sm text-fg-muted">Meta Pixel ID</span>
+            <input
+              type="text"
+              className="input mt-1 font-mono !text-xs"
+              value={metaPixelId}
+              onChange={(e) => setMetaPixelId(e.target.value)}
+              placeholder="1234567890"
+              maxLength={32}
+            />
+            <span className="block mt-1.5 text-[11px] text-fg-dim">
+              ID do Meta Pixel injetado na página pública. Dispara <code className="text-brand">PageView</code> e <code className="text-brand">Lead</code> automaticamente.
+            </span>
+          </label>
+          <label className="block mt-4">
+            <span className="text-sm text-fg-muted">Webhook URL</span>
+            <input
+              type="url"
+              className="input mt-1 font-mono !text-xs"
+              value={webhookUrl}
+              onChange={(e) => setWebhookUrl(e.target.value)}
+              placeholder="https://hooks.zapier.com/… ou https://n8n.seu.com/webhook/…"
+            />
+            <span className="block mt-1.5 text-[11px] text-fg-dim">
+              POST JSON disparado a cada lead recebido (parcial e completo). Útil pra Zapier, n8n, Make.
+            </span>
+          </label>
         </div>
 
         {/* ===== TELA DE OBRIGADO ===== */}

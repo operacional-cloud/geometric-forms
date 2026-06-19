@@ -40,6 +40,8 @@ export default function NewFormPage() {
         cover_image_url: draft.cover_image_url || null,
         whatsapp_link: draft.whatsapp_link || null,
         success_button_label: draft.success_button_label || null,
+        meta_pixel_id: draft.meta_pixel_id || null,
+        webhook_url: draft.webhook_url || null,
       },
     });
     router.push('/dashboard/forms');

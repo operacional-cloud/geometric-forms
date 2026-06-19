@@ -62,3 +62,48 @@ export async function listTenants() {
   if (error) throw new AppError(error.message, { status: 500 });
   return { tenants: data || [] };
 }
+
+export async function getTenantById(tenantId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('tenants')
+    .select('*')
+    .eq('id', tenantId)
+    .single();
+  if (error) throw new AppError('Tenant não encontrado.', { status: 404 });
+  return data;
+}
+
+/**
+ * Atualiza campos do tenant. Usado pelo admin pra vincular Ad Account Meta etc.
+ */
+export async function updateTenant(
+  tenantId: string,
+  patch: {
+    name?: string;
+    slug?: string;
+    logo_url?: string | null;
+    primary_color?: string;
+    secondary_color?: string;
+    plan?: string;
+    plan_id?: string | null;
+    status?: 'active' | 'inactive' | 'trial' | 'suspended';
+    meta_ad_account_id?: string | null;
+    metrics_config?: { hidden?: string[] } | null;
+  },
+) {
+  const updates: Record<string, any> = {};
+  for (const k of ['name', 'slug', 'logo_url', 'primary_color', 'secondary_color', 'plan', 'plan_id', 'status', 'meta_ad_account_id', 'metrics_config'] as const) {
+    if (patch[k] !== undefined) updates[k] = patch[k];
+  }
+  if (Object.keys(updates).length === 0) {
+    return await getTenantById(tenantId);
+  }
+  const { data, error } = await supabaseAdmin
+    .from('tenants')
+    .update(updates)
+    .eq('id', tenantId)
+    .select('*')
+    .single();
+  if (error) throw new AppError(error.message, { status: 500 });
+  return data;
+}

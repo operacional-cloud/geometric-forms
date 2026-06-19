@@ -2,7 +2,43 @@
 'use client';
 
 import Link from 'next/link';
+import { useState, forwardRef } from 'react';
 import { motion, type MotionProps } from 'framer-motion';
+
+/** Input de senha com botão olho pra mostrar/esconder. Aceita as mesmas props de um <input>. */
+export const PasswordInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
+  function PasswordInput({ className = '', ...rest }, ref) {
+    const [show, setShow] = useState(false);
+    return (
+      <div className="relative">
+        <input
+          ref={ref}
+          {...rest}
+          type={show ? 'text' : 'password'}
+          className={`input pr-11 ${show ? '' : 'font-mono'} ${className}`}
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => setShow((v) => !v)}
+          aria-label={show ? 'Esconder senha' : 'Mostrar senha'}
+          className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 flex items-center justify-center rounded-md text-fg-muted hover:text-brand hover:bg-white/[0.06] transition-colors"
+        >
+          {show ? (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M3 3l18 18M10.58 10.59a2 2 0 002.83 2.82M9.36 5.27A10.39 10.39 0 0112 5c5 0 9 4 10 7-.34 1.02-1.04 2.36-2.13 3.66M6.61 6.61C4.62 8.05 3.34 10.06 2.5 12c1 3 5 7 9.5 7 1.61 0 3.07-.36 4.35-1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.6" />
+            </svg>
+          )}
+        </button>
+      </div>
+    );
+  },
+);
 
 export function Kicker({ children }: { children: React.ReactNode }) {
   return <div className="kicker">{children}</div>;

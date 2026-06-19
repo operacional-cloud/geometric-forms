@@ -20,6 +20,10 @@ type Form = {
   meta_pixel_id?: string | null;
   meta_access_token?: string | null;
   meta_dataset_id?: string | null;
+  cover_image_url?: string | null;
+  whatsapp_link?: string | null;
+  success_button_label?: string | null;
+  webhook_url?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -42,7 +46,7 @@ export function FormCard({
   const [trackingPanel, setTrackingPanel] = useState<null | 'meta' | 'google'>(null);
 
   const publicUrl = tenantSlug
-    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/f/${tenantSlug}/${form.slug}`
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/${tenantSlug}/${form.slug}`
     : null;
 
   function flashCopied(kind: 'public' | 'meta' | 'google') {
@@ -60,6 +64,30 @@ export function FormCard({
     setBusy('duplicate');
     try {
       const token = await getToken();
+      // Sanitiza fields pra evitar quebrar o schema (remove props desconhecidas)
+      const cleanFields = (form.fields || []).map((f: any, idx: number) => {
+        const out: any = {
+          id: f.id,
+          type: f.type,
+          label: f.label,
+          required: !!f.required,
+          order: idx + 1,
+        };
+        if (f.placeholder) out.placeholder = f.placeholder;
+        if (f.system) out.system = true;
+        if (Array.isArray(f.options) && f.options.length > 0) {
+          out.options = f.options
+            .filter((o: any) => o.label && o.value)
+            .map((o: any) => ({
+              label: o.label,
+              value: o.value,
+              ...(typeof o.score === 'number' ? { score: o.score } : {}),
+            }));
+        }
+        if (f.validation) out.validation = f.validation;
+        return out;
+      });
+
       await apiFetch('/api/forms', {
         method: 'POST',
         token,
@@ -68,7 +96,16 @@ export function FormCard({
           description: form.description || undefined,
           qualification_threshold: form.qualification_threshold,
           is_active: false, // duplicata começa pausada
-          fields: form.fields,
+          fields: cleanFields,
+          // Mantém TODAS as configurações do form original
+          meta_pixel_id: form.meta_pixel_id || null,
+          meta_access_token: form.meta_access_token || null,
+          meta_dataset_id: form.meta_dataset_id || null,
+          cover_image_url: form.cover_image_url || null,
+          whatsapp_link: form.whatsapp_link || null,
+          success_button_label: form.success_button_label || null,
+          webhook_url: form.webhook_url || null,
+          settings: form.settings || undefined,
         },
       });
       router.refresh();
@@ -93,10 +130,35 @@ export function FormCard({
     }
   }
 
-  function copyPublicUrl() {
+  async function safeCopy(text: string): Promise<boolean> {
+    // Tenta Clipboard API moderna (precisa HTTPS + permissão)
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {}
+    // Fallback: textarea + execCommand (funciona em browsers antigos / sem HTTPS)
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+
+  async function copyPublicUrl() {
     if (!publicUrl) return;
-    navigator.clipboard.writeText(publicUrl);
-    flashCopied('public');
+    const ok = await safeCopy(publicUrl);
+    if (ok) flashCopied('public');
+    else alert('Não consegui copiar. Cole manual: ' + publicUrl);
   }
 
   function metaUrl(): string {
@@ -127,13 +189,15 @@ export function FormCard({
     return `${publicUrl}?${decodeURIComponent(params.toString())}`;
   }
 
-  function copyMeta() {
-    navigator.clipboard.writeText(metaUrl());
-    flashCopied('meta');
+  async function copyMeta() {
+    const ok = await safeCopy(metaUrl());
+    if (ok) flashCopied('meta');
+    else alert('Não consegui copiar. Cole manual: ' + metaUrl());
   }
-  function copyGoogle() {
-    navigator.clipboard.writeText(googleUrl());
-    flashCopied('google');
+  async function copyGoogle() {
+    const ok = await safeCopy(googleUrl());
+    if (ok) flashCopied('google');
+    else alert('Não consegui copiar. Cole manual: ' + googleUrl());
   }
 
   return (
@@ -168,6 +232,15 @@ export function FormCard({
           >
             <CopyIcon />
           </IconBtn>
+          {publicUrl && (
+            <IconBtn
+              title={copied === 'public' ? 'Copiado!' : 'Copiar link do formulário'}
+              onClick={copyPublicUrl}
+              color="cyan"
+            >
+              <LinkIcon />
+            </IconBtn>
+          )}
           {publicUrl && (
             <IconBtn
               title="Abrir form público em nova aba"
@@ -407,6 +480,14 @@ function CopyIcon() {
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
       <rect x="9" y="9" width="13" height="13" rx="2" />
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+function LinkIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.71" />
     </svg>
   );
 }

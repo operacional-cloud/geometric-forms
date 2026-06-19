@@ -1,8 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { getLeadName, getLeadPhone, getLeadEmail, whatsappLink, formatPhone } from '@/lib/contact';
+import { apiFetch } from '@/lib/api';
+import { useDialog } from '@/components/Dialog';
 
 type Lead = {
   id: string;
@@ -28,11 +31,35 @@ function WhatsAppIcon() {
 }
 
 export function LeadCard({ lead, form, index }: { lead: Lead; form: Form; index: number }) {
+  const router = useRouter();
+  const { confirm, notify } = useDialog();
   const [expanded, setExpanded] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const fields = form.fields || [];
   const name = getLeadName(lead.answers, fields);
   const phone = getLeadPhone(lead.answers, fields);
   const email = getLeadEmail(lead.answers, fields);
+
+  async function handleDelete() {
+    const label = name || formatPhone(phone || '') || 'este lead';
+    const ok = await confirm({
+      title: 'Excluir lead?',
+      message: `"${label}" será removido permanentemente do banco. Essa ação não pode ser desfeita.`,
+      variant: 'danger',
+      confirmLabel: 'Sim, excluir',
+    });
+    if (!ok) return;
+    setDeleting(true);
+    try {
+      await apiFetch(`/api/leads/${lead.id}`, { method: 'DELETE' });
+      notify(`Lead "${label}" excluído`, 'success');
+      router.refresh();
+    } catch (e: any) {
+      notify(`Falha ao excluir: ${e?.message || 'erro'}`, 'danger');
+    } finally {
+      setDeleting(false);
+    }
+  }
   const waLink = whatsappLink(
     phone,
     name ? `Olá ${name.split(' ')[0]}, vi sua resposta no formulário ${form.title}!` : undefined,
@@ -152,6 +179,28 @@ export function LeadCard({ lead, form, index }: { lead: Lead; form: Form; index:
           <span className="badge badge-muted">sem telefone</span>
         )}
         <span className="badge badge-muted ml-auto">{lead.status}</span>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={deleting}
+          className="inline-flex items-center justify-center w-8 h-8 rounded-md text-fg-dim hover:text-danger hover:bg-danger/10 transition-colors disabled:opacity-40 disabled:cursor-wait"
+          title="Excluir lead"
+          aria-label="Excluir lead"
+        >
+          {deleting ? (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="animate-spin">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+              <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6M14 11v6" />
+              <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+            </svg>
+          )}
+        </button>
       </div>
     </motion.div>
   );

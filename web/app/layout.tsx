@@ -3,6 +3,7 @@ import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import { Instrument_Serif } from 'next/font/google';
 import './globals.css';
+import { DialogProvider } from '@/components/Dialog';
 
 const display = Instrument_Serif({
   subsets: ['latin'],
@@ -12,7 +13,10 @@ const display = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: 'Geometric Forms — Lead qualification, redesigned.',
+  title: {
+    default: 'Geometric Forms',
+    template: '%s · Geometric Forms',
+  },
   description:
     'SaaS multi-tenant que substitui o Lead Ads do Meta por formulários que qualificam leads e devolvem só os bons via Conversions API.',
 };
@@ -27,7 +31,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         ['--font-mono' as any]: GeistMono.style.fontFamily,
       }}
     >
-      <body>{children}</body>
+      <body>
+        <DialogProvider>{children}</DialogProvider>
+      </body>
     </html>
   );
 }

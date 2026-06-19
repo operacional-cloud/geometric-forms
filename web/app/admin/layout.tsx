@@ -1,8 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getAuthOrNull } from '@/lib/server/auth';
-import { Header } from '@/components/Header';
 import { LogoutButton } from '@/components/LogoutButton';
-import { NavTabs } from '@/components/NavTabs';
+import { Sidebar, SidebarShell } from '@/components/Sidebar';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getAuthOrNull();
@@ -11,17 +10,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-screen">
-      <Header
+      <Sidebar
         variant="admin"
-        rightSlot={
-          <>
-            <span className="hidden sm:inline">{ctx.user.email}</span>
-            <LogoutButton />
-          </>
-        }
+        userLabel={ctx.user.email}
+        items={[
+          { href: '/admin', label: 'Clientes', iconKey: 'clients' },
+          { href: '/admin/prospecting', label: 'Prospecção', iconKey: 'prospecting' },
+          { href: '/admin/whatsapp', label: 'WhatsApp', iconKey: 'whatsapp', badge: 'BETA' },
+        ]}
+        bottomSlot={<LogoutButton />}
       />
-      <NavTabs items={[{ href: '/admin', label: 'Clientes' }]} />
-      <div>{children}</div>
+      <SidebarShell>{children}</SidebarShell>
     </div>
   );
 }

@@ -6,12 +6,19 @@ import { listForms, listLeads } from '@/lib/server/forms';
 import {
   PageHeader, GhostButton, StatusBadge, Kicker, Empty,
 } from '@/components/ui';
+import { MetaIntegrationCard } from './meta-integration-card';
+import { MetricsConfigCard } from './metrics-config-card';
+import { TenantColorEditor } from './tenant-color-editor';
+import { EnterPanelButton } from './enter-panel-button';
+import type { MetricsConfig } from '@/lib/metrics-catalog';
 
 type Tenant = {
   id: string; name: string; slug: string; plan: string;
   status: 'active' | 'trial' | 'inactive';
   primary_color: string; secondary_color: string;
   logo_url: string | null; created_at: string; updated_at: string;
+  meta_ad_account_id: string | null;
+  metrics_config: MetricsConfig | null;
 };
 type Form = { id: string; tenant_id: string; title: string; slug: string; is_active: boolean; qualification_threshold: number; fields: any[]; created_at: string };
 type Lead = { id: string; tenant_id: string; form_id: string; lead_score: number; is_qualified: boolean; status: string; created_at: string };
@@ -48,8 +55,9 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
         title={tenant.name}
         subtitle={`Visão geral do cliente · plano ${tenant.plan} · cadastrado em ${new Date(tenant.created_at).toLocaleDateString('pt-BR')}`}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <StatusBadge status={tenant.status} />
+            <EnterPanelButton tenantId={tenant.id} tenantName={tenant.name} />
             <GhostButton href="/admin">← Clientes</GhostButton>
           </div>
         }
@@ -85,6 +93,16 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
         </div>
       </section>
 
+      <MetaIntegrationCard tenantId={tenant.id} initialAdAccountId={tenant.meta_ad_account_id} />
+
+      <MetricsConfigCard tenantId={tenant.id} initialConfig={tenant.metrics_config} />
+
+      <TenantColorEditor
+        tenantId={tenant.id}
+        initialPrimary={tenant.primary_color}
+        initialSecondary={tenant.secondary_color}
+      />
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <BigStat label="Formulários" value={forms.length} sub={`${activeForms} ativos`} />
         <BigStat label="Leads" value={leads.length} sub="todos os tempos" />
@@ -102,7 +120,7 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
           <Kicker>FORMULÁRIOS · {forms.length}</Kicker>
           <div className="flex items-center gap-2">
             {forms.length > 0 && (
-              <span className="text-xs text-fg-muted font-mono hidden sm:inline">/f/{tenant.slug}/...</span>
+              <span className="text-xs text-fg-muted font-mono hidden sm:inline">/{tenant.slug}/...</span>
             )}
             <Link href={`/admin/${tenant.id}/forms/new`} className="btn btn-primary !py-1.5 !px-3 !text-xs">
               + Novo formulário
@@ -140,7 +158,7 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
                     <Link href={`/dashboard/forms/${f.id}`} className="btn btn-ghost !py-1.5 !text-xs justify-center">
                       Editar
                     </Link>
-                    <a href={`/f/${tenant.slug}/${f.slug}`} target="_blank" rel="noopener noreferrer"
+                    <a href={`/${tenant.slug}/${f.slug}`} target="_blank" rel="noopener noreferrer"
                        className="btn btn-ghost !py-1.5 !text-xs justify-center">
                       Abrir ↗
                     </a>

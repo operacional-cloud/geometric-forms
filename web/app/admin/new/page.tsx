@@ -10,11 +10,56 @@ import {
 
 const PRESET_COLORS = ['#10F2A0', '#5EE2FF', '#9E7DFF', '#FFC857', '#FF6363', '#F4F4F7'];
 
+/** Converte mensagem de erro técnica do backend em texto amigável em PT-BR. */
+function humanizeError(message: string, details: any): string {
+  // 1) Zod issues array — traduz por path
+  if (Array.isArray(details) && details.length > 0) {
+    const msgs = details.map((issue: any) => {
+      const path = (issue.path || []).join('.');
+      switch (path) {
+        case 'owner.email':       return 'O email do dono é inválido. Use o formato nome@empresa.com.';
+        case 'owner.password':    return 'A senha temporária deve ter pelo menos 8 caracteres.';
+        case 'owner.full_name':   return 'Informe o nome completo do dono.';
+        case 'tenant.name':       return 'Informe o nome da empresa.';
+        case 'tenant.slug':       return 'Slug inválido. Use apenas letras minúsculas, números e hifens (ex: minha-empresa).';
+        case 'tenant.logo_url':   return 'A URL do logo é inválida.';
+        case 'tenant.primary_color':   return 'Cor primária inválida.';
+        case 'tenant.secondary_color': return 'Cor secundária inválida.';
+        default: return issue.message || 'Campo inválido';
+      }
+    });
+    return msgs.join(' · ');
+  }
+
+  // 2) Erros conhecidos do Supabase / backend
+  const m = message || '';
+  if (/already.*registered|already exists|user.*exists/i.test(m)) {
+    return 'Esse email já está cadastrado em outra conta.';
+  }
+  if (/slug.*j[áa].*em uso|slug.*already/i.test(m)) {
+    return 'Esse slug já está em uso por outro cliente. Escolha um diferente.';
+  }
+  if (/invalid.*email|email.*invalid|valid email/i.test(m)) {
+    return 'O email do dono é inválido. Use o formato nome@empresa.com.';
+  }
+  if (/password.*(at least|m[íi]n|8)/i.test(m)) {
+    return 'A senha temporária deve ter pelo menos 8 caracteres.';
+  }
+  if (/sem sess[ãa]o|n[ãa]o autenticado|unauthorized/i.test(m)) {
+    return 'Sua sessão expirou. Faça login novamente.';
+  }
+  if (/network|failed to fetch|connection/i.test(m)) {
+    return 'Falha de conexão. Verifique sua internet e tente novamente.';
+  }
+
+  // 3) Fallback — mostra mensagem original se não souber traduzir
+  return m || 'Não foi possível cadastrar o cliente. Tente novamente.';
+}
+
 export default function NewTenantPage() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [details, setDetails] = useState<any>(null);
 
   const [form, setForm] = useState({
     name: '',
@@ -41,14 +86,35 @@ export default function NewTenantPage() {
     }
   }
 
+  // Validações de UX antes de enviar pro backend
+  function preflight(): string | null {
+    if (!form.name.trim()) return 'Informe o nome da empresa.';
+    if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(form.slug)) {
+      return 'Slug inválido. Use apenas letras minúsculas, números e hifens — ex: minha-empresa.';
+    }
+    if (!form.ownerName.trim()) return 'Informe o nome do dono da conta.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.ownerEmail)) {
+      return 'O email do dono é inválido. Use o formato nome@empresa.com.';
+    }
+    if (form.ownerPassword.length < 8) return 'A senha temporária deve ter pelo menos 8 caracteres.';
+    return null;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    setDetails(null);
+
+    const pre = preflight();
+    if (pre) {
+      setError(pre);
+      setBusy(false);
+      return;
+    }
+
     try {
       const { data: { session } } = await getSupabaseBrowser().auth.getSession();
-      if (!session) throw new Error('Sem sessão.');
+      if (!session) throw new Error('Sem sessão. Faça login novamente.');
 
       await apiFetch('/api/admin/tenants', {
         method: 'POST',
@@ -70,9 +136,8 @@ export default function NewTenantPage() {
       router.push('/admin');
       router.refresh();
     } catch (e: any) {
-      setError(e.message);
-      setDetails(e.details);
-      setBusy(false);
+      setError(humanizeError(e.message, e.details));
+        setBusy(false);
     }
   }
 
@@ -110,7 +175,7 @@ export default function NewTenantPage() {
                   placeholder="pillar-consorcios"
                 />
                 <span className="mt-2 inline-block text-xs text-fg-dim font-mono">
-                  /f/{form.slug || '…'}/{'{form-slug}'}
+                  /{form.slug || '…'}/{'{form-slug}'}
                 </span>
               </label>
 
@@ -197,14 +262,18 @@ export default function NewTenantPage() {
           </section>
 
           {error && (
-            <div className="glass-static p-4 border-brand-danger/40">
-              <Kicker>ERRO</Kicker>
-              <div className="mt-2 text-sm text-brand-danger">{error}</div>
-              {details && (
-                <pre className="mt-3 font-mono text-[11px] text-fg-muted overflow-auto">
-                  {JSON.stringify(details, null, 2)}
-                </pre>
-              )}
+            <div
+              className="rounded-xl p-4 flex items-start gap-3"
+              style={{
+                background: 'rgba(255, 99, 99, 0.08)',
+                border: '1px solid rgba(255, 99, 99, 0.30)',
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="shrink-0 mt-0.5">
+                <circle cx="12" cy="12" r="10" stroke="#FF6363" strokeWidth="1.8" />
+                <path d="M12 8v4M12 16h.01" stroke="#FF6363" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+              <div className="text-sm" style={{ color: '#FF8B8B' }}>{error}</div>
             </div>
           )}
         </div>

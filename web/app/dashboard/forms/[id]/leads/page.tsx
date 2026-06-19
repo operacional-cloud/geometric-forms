@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireTenantMember } from '@/lib/server/auth';
-import { listForms, listLeads } from '@/lib/server/forms';
+import { listForms } from '@/lib/server/forms';
+import { supabaseAdmin } from '@/lib/server/supabase-admin';
 import { PageHeader, GhostButton, Kicker, Empty } from '@/components/ui';
 import { LeadCard } from './lead-card';
 
@@ -29,17 +30,22 @@ type Lead = {
 
 export default async function FormLeadsPage({ params }: { params: { id: string } }) {
   const ctx = await requireTenantMember();
-  let form: Form | null = null;
-  let leads: Lead[] = [];
-  try {
-    const fr = await listForms(ctx);
-    form = (fr.forms as Form[]).find((f) => f.id === params.id) ?? null;
-    if (form) {
-      const lr = await listLeads(ctx, { limit: 500, formId: form.id });
-      leads = lr.leads as Lead[];
-    }
-  } catch {}
+
+  const fr = await listForms(ctx);
+  const form = (fr.forms as Form[]).find((f) => f.id === params.id) ?? null;
   if (!form) notFound();
+
+  // Usa supabaseAdmin direto pra evitar problemas de RLS quando o usuário tem
+  // tenant_id correto. Filtra explicitamente pelo tenant do form.
+  const tenantId = ctx.profile.tenant_id || (form as any).tenant_id;
+  const { data: leadsData, error } = await supabaseAdmin
+    .from('leads')
+    .select('*')
+    .eq('form_id', form.id)
+    .order('created_at', { ascending: false })
+    .limit(500);
+  if (error) throw new Error(`Falha ao carregar leads: ${error.message}`);
+  const leads = (leadsData || []) as Lead[];
 
   const qualified = leads.filter((l) => l.is_qualified).length;
   const qualRate = leads.length > 0 ? Math.round((qualified / leads.length) * 100) : 0;

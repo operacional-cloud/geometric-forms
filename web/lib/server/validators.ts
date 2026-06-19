@@ -80,6 +80,7 @@ export const formSaveSchema = z.object({
   cover_image_url: z.string().url().max(2000).optional().nullable(),
   whatsapp_link: z.string().url().max(2000).optional().nullable(),
   success_button_label: z.string().max(80).optional().nullable(),
+  webhook_url: z.string().url().max(2000).optional().nullable(),
   tenant_id: z.string().uuid().optional(), // admin pode passar pra criar em nome de outro tenant
 });
 
@@ -106,6 +107,42 @@ export const leadSubmitSchema = z.object({
     })
     .optional()
     .default({}),
+});
+
+// ---- prospecção ativa -------------------------------------------------------
+export const scrapeSchema = z.object({
+  // Categoria de negócio (mapeada pra OSM tags). Aceita string livre, mapeamento no backend.
+  niche: z.string().min(2).max(80),
+  // UF do estado (2 letras), ex: SP, RJ, MG
+  state: z.string().length(2).regex(/^[A-Za-z]{2}$/, 'estado deve ser sigla UF (2 letras)'),
+  // Nome da cidade tal como retornado pelo IBGE (ex: "São Paulo", "Ribeirão Preto")
+  city: z.string().min(2).max(80),
+  // Tenant alvo — só usado por admin (cliente comum ignora)
+  tenant_id: z.string().uuid().optional(),
+  // Quantidade máxima de leads pra capturar (após dedup). Default 50.
+  max_leads: z.number().int().min(1).max(200).optional(),
+});
+
+export const extractUrlsSchema = z.object({
+  urls: z.array(z.string().url()).min(1).max(50),
+  keyword: z.string().max(80).optional().nullable(),
+});
+
+// Lead manual (adicionado pela equipe sem scraping)
+export const manualLeadSchema = z.object({
+  name: z.string().min(1).max(200).optional().nullable(),
+  phone: z.string().min(8).max(20),    // qualquer formato, normaliza no backend
+  niche: z.string().min(1).max(80),
+  city: z.string().max(80).optional().nullable(),
+  tenant_id: z.string().uuid().optional(),
+});
+
+export const prospectingSettingsSchema = z.object({
+  max_leads_per_day: z.number().int().min(1).max(500).optional(),
+  min_delay_minutes: z.number().int().min(0).max(120).optional(),
+  max_delay_minutes: z.number().int().min(0).max(240).optional(),
+  whatsapp_instances: z.array(z.string()).optional(),
+  ai_script: z.string().max(4000).optional().nullable(),
 });
 
 export const eventTrackSchema = z.object({

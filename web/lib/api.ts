@@ -6,7 +6,7 @@ export const API_BASE = ''; // relativo (mesma origem)
 export async function apiFetch<T = any>(
   path: string,
   opts: {
-    method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+    method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     body?: any;
     /** @deprecated mantido pra compat; ignorado (auth vem por cookie) */
     token?: string | null;

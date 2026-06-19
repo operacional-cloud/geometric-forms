@@ -33,16 +33,18 @@
 }
 
 @layer components {
-  /* Container central */
+  /* Container central — usado tanto fora quanto dentro do dashboard shell.
+     Sidebar (256px) já consome espaço à esquerda em lg+, então o container fica
+     mais magro nesse contexto. Mantém max-width generoso pra preencher monitores wide. */
   .container-edge {
     width: 100%;
-    max-width: 1400px;
+    max-width: 1500px;
     margin: 0 auto;
-    padding: 0 24px;
+    padding: 0 16px;
   }
-  @media (min-width: 1024px) {
-    .container-edge { padding: 0 48px; }
-  }
+  @media (min-width: 640px)  { .container-edge { padding: 0 24px; } }
+  @media (min-width: 1024px) { .container-edge { padding: 0 32px; } }
+  @media (min-width: 1440px) { .container-edge { padding: 0 40px; } }
 
   /* === GLASS === */
   .glass {
@@ -143,6 +145,13 @@
     background: rgba(16, 242, 160, 0.025);
     box-shadow: 0 0 0 3px rgba(16, 242, 160, 0.07);
   }
+  /* options dentro de <select> — força fundo escuro e texto claro pro dropdown nativo */
+  .input option,
+  select.input option,
+  select option {
+    background-color: #16161D;
+    color: #F4F4F7;
+  }
   .input-bare {
     width: 100%;
     background: transparent;
@@ -232,6 +241,15 @@
     background: #10F2A0;
     box-shadow: 0 0 4px rgba(16, 242, 160, 0.55);
   }
+  /* Em cabeçalhos de tabela, suprimir o ponto verde (é ruído visual) */
+  th.kicker::before,
+  th .kicker::before {
+    display: none;
+  }
+  th.kicker,
+  th .kicker {
+    gap: 0;
+  }
 
   /* === LINK === */
   .link {
@@ -292,9 +310,9 @@
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 12px;
-    padding: 14px 16px;
+    padding: 18px 20px;
     color: #F4F4F7;
-    font-size: 15px;
+    font-size: 18px;
     outline: none;
     transition: border-color .15s ease, background .15s ease;
   }
@@ -373,4 +391,42 @@
     transform: translateY(-1px);
     box-shadow: 0 4px 14px -4px rgba(16, 242, 160, 0.18);
   }
+}
+
+/* ===========================================================================
+   Exportar PDF — impressão do painel de métricas (window.print()).
+   Só o conteúdo de .metrics-print-root vai pro PDF; o resto da página some.
+   =========================================================================== */
+.print-only { display: none; }
+
+@media print {
+  @page { margin: 12mm; }
+
+  /* Mantém as cores escuras do dashboard no PDF */
+  body.printing-metrics {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background: #0B1314 !important;
+  }
+
+  /* Esconde tudo, revela só o painel de métricas */
+  body.printing-metrics * { visibility: hidden; }
+  body.printing-metrics .metrics-print-root,
+  body.printing-metrics .metrics-print-root * { visibility: visible; }
+  body.printing-metrics .metrics-print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  /* Elementos que nunca devem aparecer no PDF */
+  body.printing-metrics .no-print { display: none !important; }
+  /* Cabeçalho que só aparece no PDF */
+  body.printing-metrics .print-only { display: block !important; visibility: visible !important; }
+
+  /* Evita cortar cards/seções no meio entre páginas */
+  body.printing-metrics .glass-static,
+  body.printing-metrics .glass-inner,
+  body.printing-metrics table { break-inside: avoid; }
 }

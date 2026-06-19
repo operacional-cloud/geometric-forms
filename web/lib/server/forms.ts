@@ -1,5 +1,7 @@
 import { formSaveSchema, formUpdateSchema } from './validators';
 import { AppError, NotFoundError, ConflictError, ForbiddenError } from './errors';
+import { supabaseAdmin } from './supabase-admin';
+import { assertWithinFormLimit } from './plans';
 import type { AuthContext } from './auth';
 
 function slugifyTitle(title: string): string {
@@ -47,6 +49,9 @@ export async function createForm(ctx: AuthContext, input: unknown) {
   const tenantId = effectiveTenantId(ctx, parsed.tenant_id);
   if (!tenantId) throw new ForbiddenError('tenant_id é obrigatório');
 
+  // Enforcement de plano: bloqueia se o tenant estourou max_formularios.
+  await assertWithinFormLimit(tenantId);
+
   const baseSlug = parsed.slug || slugifyTitle(parsed.title);
   const finalSlug = await ensureUniqueSlug(ctx.supabase, tenantId, baseSlug);
 
@@ -67,6 +72,7 @@ export async function createForm(ctx: AuthContext, input: unknown) {
       cover_image_url: parsed.cover_image_url || null,
       whatsapp_link: parsed.whatsapp_link || null,
       success_button_label: parsed.success_button_label || null,
+      webhook_url: parsed.webhook_url || null,
     })
     .select('*')
     .single();
@@ -80,7 +86,7 @@ export async function createForm(ctx: AuthContext, input: unknown) {
   const baseUrl = process.env.PUBLIC_FORMS_BASE_URL || '';
   return {
     form: data,
-    public_url: `${baseUrl}/f/${tenantQ.data?.slug}/${data.slug}`,
+    public_url: `${baseUrl}/${tenantQ.data?.slug}/${data.slug}`,
   };
 }
 
@@ -108,6 +114,7 @@ export async function updateForm(ctx: AuthContext, id: string, input: unknown) {
   if (parsed.cover_image_url !== undefined) patch.cover_image_url = parsed.cover_image_url;
   if (parsed.whatsapp_link !== undefined) patch.whatsapp_link = parsed.whatsapp_link;
   if (parsed.success_button_label !== undefined) patch.success_button_label = parsed.success_button_label;
+  if (parsed.webhook_url !== undefined) patch.webhook_url = parsed.webhook_url;
 
   if (parsed.slug !== undefined && parsed.slug !== existing.slug) {
     patch.slug = await ensureUniqueSlug(ctx.supabase, existing.tenant_id, parsed.slug, existing.id);
@@ -169,4 +176,26 @@ export async function listLeads(
   const { data, error } = await query;
   if (error) throw new AppError(error.message, { status: 500 });
   return { leads: data || [] };
+}
+
+export async function deleteFormLead(ctx: AuthContext, leadId: string): Promise<void> {
+  const isAdmin = ctx.profile.role === 'admin';
+  const tenantId = ctx.profile.tenant_id;
+
+  if (!isAdmin && !tenantId) {
+    throw new AppError('Apenas admin ou usuários com tenant podem excluir leads.', { status: 403 });
+  }
+
+  // Admin usa supabaseAdmin (sem RLS), sem precisar filtrar por tenant.
+  // Membro de tenant usa supabaseAdmin com filtro explícito de tenant_id
+  // (evita RLS bloquear silenciosamente em casos de cliente authenticated).
+  let query = supabaseAdmin
+    .from('leads')
+    .delete({ count: 'exact' })
+    .eq('id', leadId);
+  if (!isAdmin) query = query.eq('tenant_id', tenantId!);
+
+  const { error, count } = await query;
+  if (error) throw new AppError(error.message, { status: 500 });
+  if (!count) throw new AppError('Lead não encontrado.', { status: 404 });
 }
