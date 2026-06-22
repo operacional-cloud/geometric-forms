@@ -93,6 +93,17 @@ const PRESETS = [
 ];
 
 function isoDate(d: Date): string { return d.toISOString().slice(0, 10); }
+// Mapeia o preset (em dias) pro date_preset da Meta — assim o gasto é calculado
+// no fuso da conta (igual Ads Manager). Custom (-1) → null (usa datas time_range).
+function metaPresetFor(days: number): string | null {
+  switch (days) {
+    case 0: return 'today';
+    case 7: return 'last_7d';
+    case 30: return 'last_30d';
+    case 90: return 'last_90d';
+    default: return null;
+  }
+}
 function formatCurrency(v: number): string { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
 function formatPct(v: number): string { return `${(v * 100).toFixed(1)}%`; }
 function formatNumber(v: number): string { return v.toLocaleString('pt-BR'); }
@@ -200,13 +211,14 @@ function OverviewPanel({ vis }: { vis: Vis }) {
     const sellerQ = sellerFilter ? `?seller_id=${encodeURIComponent(sellerFilter)}` : '';
     const overviewP = apiFetch<{ data: Overview }>(`/api/kanban/overview${sellerQ}`);
     const salesP = apiFetch<{ data: SalesDashboard }>(`/api/metrics/sales?start=${start}&end=${end}`).catch(() => null);
-    const metaP = apiFetch<{ data: MetaDashboard }>(`/api/metrics/meta-ads?start=${start}&end=${end}`)
+    const mp = metaPresetFor(preset);
+    const metaP = apiFetch<{ data: MetaDashboard }>(`/api/metrics/meta-ads?start=${start}&end=${end}${mp ? `&preset=${mp}` : ''}`)
       .catch((e: any) => { setMetaError(e?.message || 'sem Meta'); return null; });
     const tagsP = apiFetch<{ data: { tags: Array<{ tag: string; count: number; value: number }> } }>('/api/kanban/tags').catch(() => null);
     Promise.all([overviewP, salesP, metaP, tagsP])
       .then(([ov, s, m, t]) => { setOverview(ov.data); setSales(s ? s.data : null); setMeta(m ? m.data : null); setTagMetrics(t ? t.data.tags : []); })
       .finally(() => setLoading(false));
-  }, [start, end, sellerFilter]);
+  }, [start, end, preset, sellerFilter]);
 
   if (loading && !overview) {
     return <div className="glass-static p-12 text-center text-sm text-fg-muted">Carregando…</div>;
@@ -463,11 +475,12 @@ function MetaAdsPanel({ vis }: { vis: Vis }) {
 
   useEffect(() => {
     setLoading(true); setError(null);
-    apiFetch<{ data: MetaDashboard }>(`/api/metrics/meta-ads?start=${start}&end=${end}`)
+    const mp = metaPresetFor(preset);
+    apiFetch<{ data: MetaDashboard }>(`/api/metrics/meta-ads?start=${start}&end=${end}${mp ? `&preset=${mp}` : ''}`)
       .then((r) => setData(r.data))
       .catch((e) => setError(e?.message || 'Falha ao carregar Meta Ads.'))
       .finally(() => setLoading(false));
-  }, [start, end]);
+  }, [start, end, preset]);
 
   if (error && !data) {
     return (

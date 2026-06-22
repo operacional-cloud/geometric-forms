@@ -59,6 +59,9 @@ export const GET = withErrorHandler(async (req) => {
     }
   }
 
-  const data = await getDashboardData({ adAccountId: adAccount, start, end });
+  // preset opcional (today|last_7d|last_30d|last_90d…): faz a Meta calcular a
+  // janela no fuso da conta (igual Ads Manager). getDashboardData valida.
+  const datePreset = url.searchParams.get('preset') || undefined;
+  const data = await getDashboardData({ adAccountId: adAccount, start, end, datePreset });
   return Response.json({ success: true, data });
 });

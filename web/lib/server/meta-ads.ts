@@ -313,15 +313,30 @@ export async function getAccountInfo(adAccountId: string): Promise<MetaAdAccount
  * @param start Data início YYYY-MM-DD
  * @param end Data fim YYYY-MM-DD
  */
+// Presets de data aceitos da Meta (ela resolve a janela no FUSO DA CONTA, igual
+// ao Ads Manager). Usar date_preset garante que o gasto bata exato com o painel
+// oficial — em vez de mandar datas em UTC com janela deslocada/incluindo hoje.
+const ALLOWED_DATE_PRESETS = new Set([
+  'today', 'yesterday', 'last_7d', 'last_14d', 'last_30d', 'last_90d',
+  'this_month', 'last_month', 'this_quarter', 'maximum',
+]);
+
 export async function getDashboardData(opts: {
   adAccountId?: string;
   start: string;
   end: string;
+  datePreset?: string;
 }): Promise<MetaDashboard> {
   const id = (opts.adAccountId || DEFAULT_AD_ACCOUNT).trim();
   if (!id) throw new Error('Ad Account ID não definido.');
   const account_id = id.startsWith('act_') ? id : `act_${id}`;
   const time_range = JSON.stringify({ since: opts.start, until: opts.end });
+  // Com preset válido → date_preset (fuso da conta). Sem preset (range custom) →
+  // time_range com as datas escolhidas pelo usuário.
+  const rangeParams: Record<string, string> =
+    opts.datePreset && ALLOWED_DATE_PRESETS.has(opts.datePreset)
+      ? { date_preset: opts.datePreset }
+      : { time_range };
 
   // 1. Account info
   const account = await getAccountInfo(account_id);
@@ -330,7 +345,7 @@ export async function getDashboardData(opts: {
   // batam com o painel oficial do Meta (mesmo modelo de atribuição que a conta usa).
   const totalsRaw = await metaFetch<{ data: any[] }>(`/${account_id}/insights`, {
     fields: 'spend,impressions,reach,clicks,ctr,cpc,cpm,frequency,actions,cost_per_action_type',
-    time_range,
+    ...rangeParams,
     level: 'account',
     use_unified_attribution_setting: 'true',
   });
@@ -339,7 +354,7 @@ export async function getDashboardData(opts: {
   // 3. Insights diários
   const dailyRaw = await metaFetch<{ data: any[] }>(`/${account_id}/insights`, {
     fields: 'date_start,spend,impressions,reach,clicks,actions',
-    time_range,
+    ...rangeParams,
     level: 'account',
     time_increment: '1',
     use_unified_attribution_setting: 'true',
@@ -356,7 +371,7 @@ export async function getDashboardData(opts: {
   // 4. Campanhas (top por menor CPR)
   const campaignsRaw = await metaFetch<{ data: any[] }>(`/${account_id}/insights`, {
     fields: 'campaign_id,campaign_name,adset_name,ad_name,spend,clicks,frequency,actions',
-    time_range,
+    ...rangeParams,
     level: 'ad',
     limit: '50',
     use_unified_attribution_setting: 'true',
@@ -388,7 +403,7 @@ export async function getDashboardData(opts: {
     try {
       const r = await metaFetch<{ data: any[] }>(`/${account_id}/insights`, {
         fields: 'reach,impressions,clicks,spend,actions',
-        time_range,
+        ...rangeParams,
         level: 'account',
         breakdowns: breakdown,
         limit: '500',
