@@ -72,6 +72,33 @@ function resolveTenant(ctx: AuthContext, requested?: string | null): string {
   return ctx.profile.tenant_id;
 }
 
+/**
+ * Id da coluna de ENTRADA (kind='default', "Lead novo") do tenant. Garante que
+ * as colunas default existam se ainda não foram criadas. Todo lead que entra
+ * deve cair aqui — nunca ficar sem coluna (que vira a coluna "Sem coluna" na UI).
+ */
+export async function getDefaultColumnId(tenantId: string): Promise<string | null> {
+  const pick = async () => {
+    const { data } = await supabaseAdmin
+      .from('kanban_columns')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('kind', 'default')
+      .order('position')
+      .limit(1)
+      .maybeSingle();
+    return (data?.id as string) || null;
+  };
+  let id = await pick();
+  if (!id) {
+    try {
+      await supabaseAdmin.rpc('ensure_default_kanban_columns', { p_tenant_id: tenantId });
+      id = await pick();
+    } catch { /* mantém null */ }
+  }
+  return id;
+}
+
 // =============================================================================
 // Columns CRUD
 // =============================================================================
@@ -159,6 +186,17 @@ export async function deleteKanbanColumn(
   opts: { tenant_id?: string } = {},
 ): Promise<void> {
   const tenantId = resolveTenant(ctx, opts.tenant_id);
+  // A coluna de entrada (kind='default', "Lead novo") é FIXA — onde todo lead
+  // novo cai. Não pode ser excluída.
+  const { data: col } = await supabaseAdmin
+    .from('kanban_columns')
+    .select('kind')
+    .eq('id', columnId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if ((col as any)?.kind === 'default') {
+    throw new AppError('A coluna de entrada "Lead novo" é fixa e não pode ser excluída.', { status: 400 });
+  }
   // Leads que estavam nessa coluna ficam com kanban_column_id=null (ON DELETE SET NULL)
   const { error } = await supabaseAdmin
     .from('kanban_columns')

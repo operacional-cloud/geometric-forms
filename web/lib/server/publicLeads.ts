@@ -4,6 +4,7 @@ import { calculateScore } from './leadScoring';
 import { AppError, NotFoundError, ValidationError } from './errors';
 import { fireWebhook } from './webhook';
 import { assertWithinLeadLimit } from './plans';
+import { getDefaultColumnId } from './kanban';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function isValidPhone(v: string): boolean {
@@ -182,11 +183,16 @@ export async function submitPublicLead(input: unknown, requestHeaders: Headers) 
     // parcial ainda conta na cota do mês; a checagem ocorre quando o lead completa.
     if (!isPartial) await assertWithinLeadLimit(form.tenant_id);
 
+    // Todo lead novo cai na coluna de ENTRADA ("Lead novo", kind=default) — nunca
+    // fica sem coluna (que apareceria como "Sem coluna" no kanban).
+    const defaultColId = await getDefaultColumnId(form.tenant_id);
+
     const { data, error } = await supabaseAdmin
       .from('leads')
       .insert({
         form_id: form.id,
         tenant_id: form.tenant_id,
+        kanban_column_id: defaultColId,
         answers: cleanAnswers,
         lead_score,
         is_qualified,

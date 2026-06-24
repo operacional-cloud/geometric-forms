@@ -5,6 +5,7 @@ import * as cheerio from 'cheerio';
 import { supabaseAdmin } from './supabase-admin';
 import { scrapeSchema, extractUrlsSchema, prospectingSettingsSchema } from './validators';
 import { AppError } from './errors';
+import { getDefaultColumnId } from './kanban';
 import type { AuthContext } from './auth';
 
 // =============================================================================
@@ -987,6 +988,7 @@ export async function createManualLead(
     return { lead: existing, created: false };
   }
 
+  const defaultColId = await getDefaultColumnId(tenantId);
   const { data, error } = await supabaseAdmin
     .from('prospecting_leads')
     .insert({
@@ -994,6 +996,7 @@ export async function createManualLead(
       name,
       whatsapp_number: r.phone,
       keyword_used: keyword,
+      kanban_column_id: defaultColId,
       status: 'pending' as const,
       source_url: null,
       metadata: {
