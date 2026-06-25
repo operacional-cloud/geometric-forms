@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Kicker } from '@/components/ui';
+import { apiFetch } from '@/lib/api';
 import { FormCard } from './form-card';
 
 type Form = {
@@ -38,6 +39,25 @@ export function FormsClient({
   const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
   const [from, setFrom] = useState(monthAgo);
   const [to, setTo] = useState(today);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+
+  async function onImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // permite reimportar o mesmo arquivo
+    if (!file) return;
+    setImporting(true);
+    try {
+      const tpl = JSON.parse(await file.text());
+      const res = await apiFetch<{ data: { form: { title: string } } }>('/api/forms/import', { method: 'POST', body: tpl });
+      alert(`Formulário "${res.data.form.title}" importado neste cliente.`);
+      window.location.reload();
+    } catch (err: any) {
+      alert(`Falha ao importar: ${err?.message || 'arquivo JSON inválido'}`);
+    } finally {
+      setImporting(false);
+    }
+  }
 
   const statById = useMemo(
     () => new Map(stats.map((s) => [s.formId, s])),
@@ -71,13 +91,27 @@ export function FormsClient({
       </div>
 
       {/* ============ TABS ============ */}
-      <div className="flex items-center gap-1 border-b border-line">
-        <TabButton active={tab === 'forms'} onClick={() => setTab('forms')} icon={<DocIcon small />}>
-          Formulários
-        </TabButton>
-        <TabButton active={tab === 'analysis'} onClick={() => setTab('analysis')} icon={<SearchIcon />}>
-          Análise de leads
-        </TabButton>
+      <div className="flex items-center justify-between gap-2 border-b border-line">
+        <div className="flex items-center gap-1">
+          <TabButton active={tab === 'forms'} onClick={() => setTab('forms')} icon={<DocIcon small />}>
+            Formulários
+          </TabButton>
+          <TabButton active={tab === 'analysis'} onClick={() => setTab('analysis')} icon={<SearchIcon />}>
+            Análise de leads
+          </TabButton>
+        </div>
+        <div className="pb-1">
+          <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={onImportFile} />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={importing}
+            className="btn btn-ghost !py-1.5 !px-3 !text-xs disabled:opacity-50"
+            title="Importar um formulário exportado (JSON) neste cliente"
+          >
+            {importing ? 'Importando…' : '⬆ Importar formulário'}
+          </button>
+        </div>
       </div>
 
       {/* ============ REPORT PANEL ============ */}

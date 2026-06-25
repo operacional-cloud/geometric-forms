@@ -86,6 +86,22 @@ export const formSaveSchema = z.object({
 
 export const formUpdateSchema = formSaveSchema.partial();
 
+// Template portável de formulário (export/import entre clientes). Só os campos
+// de ESTRUTURA — NÃO inclui id/slug/tenant_id nem meta_* (pixel/token/dataset),
+// que são específicos de cada cliente. Chaves desconhecidas (_type, _version,
+// etc.) são ignoradas pelo zod.
+export const formTemplateSchema = z.object({
+  title: z.string().min(1).max(200),
+  description: z.string().max(2000).optional().nullable(),
+  fields: z.array(formFieldSchema).min(1),
+  settings: z.record(z.string(), z.any()).optional(),
+  qualification_threshold: z.number().int().nonnegative().optional().default(0),
+  cover_image_url: z.string().url().max(2000).optional().nullable(),
+  whatsapp_link: z.string().url().max(2000).optional().nullable(),
+  success_button_label: z.string().max(80).optional().nullable(),
+  webhook_url: z.string().url().max(2000).optional().nullable(),
+});
+
 export const leadSubmitSchema = z.object({
   form_id: z.string().uuid(),
   event_id: z.string().min(1).max(128),

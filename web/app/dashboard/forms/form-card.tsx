@@ -116,6 +116,33 @@ export function FormCard({
     }
   }
 
+  function handleExport() {
+    // Template portável: só ESTRUTURA. Sem id/slug/tenant_id e sem meta_*
+    // (pixel/token/dataset) — específicos de cada cliente.
+    const tpl = {
+      _type: 'geometric-form-template',
+      _version: 1,
+      title: form.title,
+      description: form.description ?? null,
+      fields: form.fields ?? [],
+      settings: form.settings ?? {},
+      qualification_threshold: form.qualification_threshold ?? 0,
+      cover_image_url: form.cover_image_url ?? null,
+      whatsapp_link: form.whatsapp_link ?? null,
+      success_button_label: form.success_button_label ?? null,
+      webhook_url: form.webhook_url ?? null,
+    };
+    const blob = new Blob([JSON.stringify(tpl, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `form-${form.slug || 'template'}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   async function handleDelete() {
     setBusy('delete');
     try {
@@ -231,6 +258,13 @@ export function FormCard({
             color="cyan"
           >
             <CopyIcon />
+          </IconBtn>
+          <IconBtn
+            title="Exportar formulário (JSON) — pra importar em outro cliente"
+            onClick={handleExport}
+            color="cyan"
+          >
+            <DownloadIcon />
           </IconBtn>
           {publicUrl && (
             <IconBtn
@@ -480,6 +514,13 @@ function CopyIcon() {
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
       <rect x="9" y="9" width="13" height="13" rx="2" />
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+function DownloadIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" strokeWidth="1.8" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
     </svg>
   );
 }

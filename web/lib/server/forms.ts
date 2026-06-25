@@ -1,7 +1,8 @@
-import { formSaveSchema, formUpdateSchema } from './validators';
+import { formSaveSchema, formUpdateSchema, formTemplateSchema } from './validators';
 import { AppError, NotFoundError, ConflictError, ForbiddenError } from './errors';
 import { supabaseAdmin } from './supabase-admin';
 import { assertWithinFormLimit } from './plans';
+import { getActiveTenantId } from './active-tenant';
 import type { AuthContext } from './auth';
 
 function slugifyTitle(title: string): string {
@@ -88,6 +89,42 @@ export async function createForm(ctx: AuthContext, input: unknown) {
     form: data,
     public_url: `${baseUrl}/${tenantQ.data?.slug}/${data.slug}`,
   };
+}
+
+/**
+ * Importa um template de formulário (exportado de outro cliente) criando um
+ * NOVO formulário no cliente em foco. Reaproveita createForm (slug único +
+ * enforcement de plano). NÃO importa meta_* (pixel/token/dataset) — específicos
+ * de cada cliente; o admin reconfigura o rastreamento depois.
+ *
+ * Tenant alvo: cliente comum → o próprio; admin → o cliente em que "entrou no
+ * painel" (cookie viewing_tenant_id).
+ */
+export async function importForm(ctx: AuthContext, payload: unknown) {
+  const tpl = formTemplateSchema.parse(payload);
+
+  let tenantId: string | null;
+  if (ctx.profile.role === 'admin') {
+    tenantId = getActiveTenantId(ctx) || ctx.profile.tenant_id || null;
+  } else {
+    tenantId = ctx.profile.tenant_id;
+  }
+  if (!tenantId) {
+    throw new ForbiddenError('Entre no painel de um cliente antes de importar um formulário.');
+  }
+
+  return createForm(ctx, {
+    title: tpl.title,
+    description: tpl.description ?? undefined,
+    fields: tpl.fields,
+    settings: tpl.settings,
+    qualification_threshold: tpl.qualification_threshold,
+    cover_image_url: tpl.cover_image_url ?? null,
+    whatsapp_link: tpl.whatsapp_link ?? null,
+    success_button_label: tpl.success_button_label ?? null,
+    webhook_url: tpl.webhook_url ?? null,
+    tenant_id: tenantId,
+  });
 }
 
 export async function updateForm(ctx: AuthContext, id: string, input: unknown) {
