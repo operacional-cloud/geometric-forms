@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/server/supabase-admin';
 import { getActiveTenantId } from '@/lib/server/active-tenant';
 import { PageHeader, GradientButton, Empty } from '@/components/ui';
 import { FormsClient } from './forms-client';
+import { ImportFormButton } from './import-form-button';
 
 type Form = {
   id: string;
@@ -76,7 +77,12 @@ export default async function FormsPage() {
         kicker="FORMULÁRIOS · 002"
         title="Formulários."
         subtitle="Crie e gerencie seus formulários de captura de leads."
-        action={<GradientButton href="/dashboard/forms/new">+ Novo Formulário</GradientButton>}
+        action={(
+          <div className="flex items-center gap-2">
+            <ImportFormButton />
+            <GradientButton href="/dashboard/forms/new">+ Novo Formulário</GradientButton>
+          </div>
+        )}
       />
 
       {forms.length === 0 ? (
