@@ -99,7 +99,8 @@ export const formTemplateSchema = z.object({
   cover_image_url: z.string().url().max(2000).optional().nullable(),
   whatsapp_link: z.string().url().max(2000).optional().nullable(),
   success_button_label: z.string().max(80).optional().nullable(),
-  webhook_url: z.string().url().max(2000).optional().nullable(),
+  // webhook_url NÃO entra no template: encaminhamento externo é específico de
+  // cada cliente. Ignorado mesmo se vier num arquivo antigo.
 });
 
 export const leadSubmitSchema = z.object({

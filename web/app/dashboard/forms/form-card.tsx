@@ -130,7 +130,9 @@ export function FormCard({
       cover_image_url: form.cover_image_url ?? null,
       whatsapp_link: form.whatsapp_link ?? null,
       success_button_label: form.success_button_label ?? null,
-      webhook_url: form.webhook_url ?? null,
+      // webhook_url NÃO é exportado: é o encaminhamento externo (específico do
+      // cliente). Sem ele, o lead do form importado nunca vai pro destino do
+      // cliente original. Cada cliente configura o próprio webhook.
     };
     const blob = new Blob([JSON.stringify(tpl, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

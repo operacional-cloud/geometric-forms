@@ -122,7 +122,8 @@ export async function importForm(ctx: AuthContext, payload: unknown) {
     cover_image_url: tpl.cover_image_url ?? null,
     whatsapp_link: tpl.whatsapp_link ?? null,
     success_button_label: tpl.success_button_label ?? null,
-    webhook_url: tpl.webhook_url ?? null,
+    // webhook_url omitido de propósito: form importado começa sem encaminhamento
+    // externo, pra não mandar lead do novo cliente pro destino do cliente origem.
     tenant_id: tenantId,
   });
 }
