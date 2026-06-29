@@ -426,7 +426,9 @@ export async function createManualClientLead(
       notes: input.notes || null,
       deal_value: input.deal_value || null,
       kanban_column_id: colId,
-      status: 'manual',
+      // 'novo' é o único valor válido pro check leads_status_check. A distinção
+      // de lead manual fica em is_manual=true + tag, não no status.
+      status: 'novo',
       lead_score: 0,
       is_qualified: false,
       is_complete: true,
