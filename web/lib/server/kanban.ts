@@ -57,6 +57,16 @@ export type KanbanLead = {
   form_title?: string | null;
   keyword_used?: string | null;
   metadata?: any;
+  // atribuição de anúncio (só lead de formulário)
+  utm_source?: string | null;
+  utm_medium?: string | null;
+  utm_campaign?: string | null;
+  utm_content?: string | null;
+  utm_term?: string | null;
+  ad_platform?: string | null;
+  geo_country?: string | null;
+  geo_region?: string | null;
+  geo_city?: string | null;
 };
 
 function resolveTenant(ctx: AuthContext, requested?: string | null): string {
@@ -452,7 +462,7 @@ export async function listAllLeadsForKanban(
   const [formRes, prospRes, formsRes] = await Promise.all([
     supabaseAdmin
       .from('leads')
-      .select('id, form_id, answers, manual_data, is_manual, kanban_column_id, deal_value, notes, created_at, seller_id, tags, won_at, followup_at')
+      .select('id, form_id, answers, manual_data, is_manual, kanban_column_id, deal_value, notes, created_at, seller_id, tags, won_at, followup_at, utm_source, utm_medium, utm_campaign, utm_content, utm_term, ad_platform, geo_country, geo_region, geo_city')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
       .limit(500),
@@ -495,6 +505,15 @@ export async function listAllLeadsForKanban(
       followup_at: l.followup_at || null,
       form_id: l.form_id,
       form_title: form?.title || null,
+      utm_source: l.utm_source || null,
+      utm_medium: l.utm_medium || null,
+      utm_campaign: l.utm_campaign || null,
+      utm_content: l.utm_content || null,
+      utm_term: l.utm_term || null,
+      ad_platform: l.ad_platform || null,
+      geo_country: l.geo_country || null,
+      geo_region: l.geo_region || null,
+      geo_city: l.geo_city || null,
     };
   });
 

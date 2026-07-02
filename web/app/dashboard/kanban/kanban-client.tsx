@@ -35,6 +35,15 @@ type KanbanLead = {
   form_title?: string | null;
   keyword_used?: string | null;
   seller_id?: string | null;
+  utm_source?: string | null;
+  utm_medium?: string | null;
+  utm_campaign?: string | null;
+  utm_content?: string | null;
+  utm_term?: string | null;
+  ad_platform?: string | null;
+  geo_country?: string | null;
+  geo_region?: string | null;
+  geo_city?: string | null;
 };
 
 const FOLLOWUP_DAYS_THRESHOLD = 7;
@@ -662,6 +671,15 @@ function LeadCard({
    Modal: editar lead (valor + notes)
    ============================================================ */
 
+function AttrRow({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-fg-dim text-[10px] uppercase tracking-wider">{label}</div>
+      <div className="truncate text-sm font-medium" title={value || undefined}>{value || '—'}</div>
+    </div>
+  );
+}
+
 function LeadEditModal({
   lead, columns, sellers, onClose, onSaved,
 }: {
@@ -715,6 +733,19 @@ function LeadEditModal({
           {lead.phone && ` · ${lead.phone}`}
           {lead.email && ` · ${lead.email}`}
         </div>
+
+        {(lead.utm_campaign || lead.utm_content || lead.utm_term || lead.utm_source || lead.ad_platform || lead.geo_city || lead.geo_region) && (
+          <div className="rounded-lg p-3" style={{ background: 'rgba(94,226,255,0.06)', border: '1px solid rgba(94,226,255,0.18)' }}>
+            <div className="text-[11px] font-mono uppercase tracking-widest text-fg-dim mb-2">📢 Origem do anúncio</div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+              <AttrRow label="Plataforma" value={lead.ad_platform || lead.utm_source} />
+              <AttrRow label="Campanha" value={lead.utm_campaign} />
+              <AttrRow label="Conjunto de anúncios" value={lead.utm_term} />
+              <AttrRow label="Anúncio" value={lead.utm_content} />
+              <AttrRow label="Região" value={[lead.geo_city, lead.geo_region, lead.geo_country].filter(Boolean).join(' · ') || null} />
+            </div>
+          </div>
+        )}
 
         <label className="block">
           <span className="text-sm text-fg-muted">Coluna</span>

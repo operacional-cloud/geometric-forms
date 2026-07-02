@@ -118,6 +118,7 @@ export const leadSubmitSchema = z.object({
       utm_campaign: z.string().optional(),
       utm_content: z.string().optional(),
       utm_term: z.string().optional(),
+      platform: z.string().max(120).optional(),
       user_agent: z.string().optional(),
       page_url: z.string().url().optional(),
       session_id: z.string().optional(),

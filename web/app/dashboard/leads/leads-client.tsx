@@ -24,7 +24,14 @@ type UnifiedLead = {
   is_qualified?: boolean | null;
   is_complete?: boolean | null;
   utm_source?: string | null;
+  utm_medium?: string | null;
   utm_campaign?: string | null;
+  utm_content?: string | null;
+  utm_term?: string | null;
+  ad_platform?: string | null;
+  geo_country?: string | null;
+  geo_region?: string | null;
+  geo_city?: string | null;
   keyword_used?: string | null;
   source_url?: string | null;
   metadata?: Record<string, any> | null;
@@ -313,10 +320,29 @@ function FormDetail({ lead }: { lead: UnifiedLead }) {
           {lead.form_title}
         </Link>
       )}
-      <div className="text-[11px] text-fg-dim font-mono mt-0.5 flex items-center gap-2">
+      <div className="text-[11px] text-fg-dim font-mono mt-0.5 flex items-center gap-2 flex-wrap">
         <span className="tabular">pts {lead.lead_score ?? 0}</span>
-        {lead.utm_source && <span>· {lead.utm_source}</span>}
+        {(lead.ad_platform || lead.utm_source) && <span>· {lead.ad_platform || lead.utm_source}</span>}
       </div>
+      {(lead.utm_campaign || lead.utm_term || lead.utm_content || lead.geo_city || lead.geo_region) && (
+        <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+          {lead.utm_campaign && <AttrMini label="Campanha" value={lead.utm_campaign} />}
+          {lead.utm_term && <AttrMini label="Conjunto" value={lead.utm_term} />}
+          {lead.utm_content && <AttrMini label="Anúncio" value={lead.utm_content} />}
+          {(lead.geo_city || lead.geo_region) && (
+            <AttrMini label="Região" value={[lead.geo_city, lead.geo_region].filter(Boolean).join(' · ')} />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AttrMini({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <span className="text-fg-dim uppercase tracking-wider">{label}: </span>
+      <span className="text-fg-muted" title={value}>{value}</span>
     </div>
   );
 }

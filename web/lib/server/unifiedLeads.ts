@@ -29,7 +29,14 @@ export type UnifiedLead = {
   is_qualified?: boolean | null;
   is_complete?: boolean | null;
   utm_source?: string | null;
+  utm_medium?: string | null;
   utm_campaign?: string | null;
+  utm_content?: string | null;
+  utm_term?: string | null;
+  ad_platform?: string | null;
+  geo_country?: string | null;
+  geo_region?: string | null;
+  geo_city?: string | null;
   answers?: Record<string, any> | null;
 
   // Prospecting-only
@@ -107,7 +114,14 @@ export async function listLeadsUnified(
       is_qualified: !!l.is_qualified,
       is_complete: l.is_complete !== false,
       utm_source: l.utm_source || null,
+      utm_medium: l.utm_medium || null,
       utm_campaign: l.utm_campaign || null,
+      utm_content: l.utm_content || null,
+      utm_term: l.utm_term || null,
+      ad_platform: l.ad_platform || null,
+      geo_country: l.geo_country || null,
+      geo_region: l.geo_region || null,
+      geo_city: l.geo_city || null,
       answers: l.answers || null,
     };
   });

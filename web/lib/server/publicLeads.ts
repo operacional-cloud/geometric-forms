@@ -18,6 +18,12 @@ function clientIpFrom(headers: Headers): string | null {
   return headers.get('x-real-ip') || null;
 }
 
+/** A Vercel envia x-vercel-ip-city URL-encoded (ex.: "S%C3%A3o%20Paulo"). */
+function decodeGeo(v: string | null): string | null {
+  if (!v) return null;
+  try { return decodeURIComponent(v); } catch { return v; }
+}
+
 function sanitizeAndValidateAnswers(
   answers: Record<string, any>,
   fields: any[],
@@ -206,6 +212,11 @@ export async function submitPublicLead(input: unknown, requestHeaders: Headers) 
         utm_campaign: tracking.utm_campaign || null,
         utm_content: tracking.utm_content || null,
         utm_term: tracking.utm_term || null,
+        ad_platform: (tracking as any).platform || null,
+        // Região: headers de geo da Vercel (derivados do IP, sem chamada externa).
+        geo_country: requestHeaders.get('x-vercel-ip-country') || null,
+        geo_region: requestHeaders.get('x-vercel-ip-country-region') || null,
+        geo_city: decodeGeo(requestHeaders.get('x-vercel-ip-city')),
         ip_address: clientIpFrom(requestHeaders),
         user_agent: tracking.user_agent || requestHeaders.get('user-agent') || null,
         capi_event_id: parsed.event_id,

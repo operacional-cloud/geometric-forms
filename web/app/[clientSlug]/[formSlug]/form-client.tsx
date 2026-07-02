@@ -53,6 +53,8 @@ function captureTracking() {
     utm_campaign: s.get('utm_campaign') || undefined,
     utm_content: s.get('utm_content') || undefined,
     utm_term: s.get('utm_term') || undefined,
+    // Plataforma/posicionamento do Meta ({{placement}} / {{site_source_name}}).
+    platform: s.get('placement') || s.get('platform') || s.get('site_source_name') || undefined,
     user_agent: navigator.userAgent,
     page_url: window.location.href,
   };
@@ -66,7 +68,17 @@ function isLight(hex: string): boolean {
   return r * 0.299 + g * 0.587 + b * 0.114 > 160;
 }
 function formatPhoneBR(v: string): string {
-  const d = v.replace(/\D/g, '').slice(0, 11);
+  let d = v.replace(/\D/g, '').slice(0, 13);
+  // Com código do país (55 + DDD + número → 12–13 dígitos): "+55 (DD) NNNNN-NNNN".
+  // DDD 55 sozinho (11 díg.) NÃO cai aqui (só quando passa de 11).
+  if (d.startsWith('55') && d.length > 11) {
+    const r = d.slice(2); // DDD + número
+    if (r.length <= 2) return `+55 (${r}`;
+    if (r.length <= 7) return `+55 (${r.slice(0, 2)}) ${r.slice(2)}`;
+    return `+55 (${r.slice(0, 2)}) ${r.slice(2, 7)}-${r.slice(7)}`;
+  }
+  // Só DDD estadual (ex.: 51, 44) + número, até 11 dígitos.
+  d = d.slice(0, 11);
   if (d.length <= 2) return d ? `(${d}` : '';
   if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
@@ -258,7 +270,7 @@ export function PublicFormClient({ tenant, form }: { tenant: Tenant; form: Form 
   // =========================================================================
   if (step === -1) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-4 py-10" style={{ background: '#0f0f12' }}>
+      <main className="min-h-screen flex items-center justify-center px-4 py-6 sm:py-10" style={{ background: '#0f0f12' }}>
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -282,7 +294,7 @@ export function PublicFormClient({ tenant, form }: { tenant: Tenant; form: Form 
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={tenant.logo_url} alt={tenant.name} className="h-24" />
                 ) : (
-                  <span className="font-display text-5xl tracking-tightest" style={{ color: accent }}>
+                  <span className="font-display text-4xl sm:text-5xl tracking-tightest" style={{ color: accent }}>
                     {tenant.name}
                   </span>
                 )}
@@ -324,7 +336,7 @@ export function PublicFormClient({ tenant, form }: { tenant: Tenant; form: Form 
     const wa = form.whatsapp_link;
     const buttonLabel = form.success_button_label || 'Quero agilizar';
     return (
-      <main className="min-h-screen flex items-center justify-center px-4 py-10" style={{ background: '#0f0f12' }}>
+      <main className="min-h-screen flex items-center justify-center px-4 py-6 sm:py-10" style={{ background: '#0f0f12' }}>
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -375,9 +387,9 @@ export function PublicFormClient({ tenant, form }: { tenant: Tenant; form: Form 
   // QUESTION SCREEN
   // =========================================================================
   return (
-    <main className="min-h-screen flex items-center justify-center px-4 py-10" style={{ background: '#0f0f12' }}>
+    <main className="min-h-screen flex items-center justify-center px-4 py-6 sm:py-10" style={{ background: '#0f0f12' }}>
       <div className="w-full max-w-xl">
-        <div className="rounded-2xl border border-white/10 p-8 lg:p-10" style={{ background: '#16161B' }}>
+        <div className="rounded-2xl border border-white/10 p-5 sm:p-8 lg:p-10" style={{ background: '#16161B' }}>
           <div className="text-[13px] font-bold uppercase tracking-widest text-fg-muted">
             Pergunta {step + 1} de {total}
           </div>
