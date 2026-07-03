@@ -1,6 +1,6 @@
 import { withErrorHandler } from '@/lib/server/errors';
 import { requireAdmin } from '@/lib/server/auth';
-import { getTenantById, updateTenant } from '@/lib/server/tenants';
+import { getTenantById, updateTenant, deleteTenant } from '@/lib/server/tenants';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,4 +26,10 @@ export const PATCH = withErrorHandler(async (req, { params }: { params: { id: st
     metrics_config: body?.metrics_config,
   });
   return Response.json({ success: true, data: { tenant } });
+});
+
+export const DELETE = withErrorHandler(async (_req, { params }: { params: { id: string } }) => {
+  await requireAdmin();
+  const data = await deleteTenant(params.id);
+  return Response.json({ success: true, data });
 });

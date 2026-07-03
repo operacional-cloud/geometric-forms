@@ -10,6 +10,7 @@ import { MetaIntegrationCard } from './meta-integration-card';
 import { MetricsConfigCard } from './metrics-config-card';
 import { TenantColorEditor } from './tenant-color-editor';
 import { EnterPanelButton } from './enter-panel-button';
+import { DeleteTenantButton } from './delete-tenant-button';
 import type { MetricsConfig } from '@/lib/metrics-catalog';
 
 type Tenant = {
@@ -211,6 +212,19 @@ export default async function TenantDetailPage({ params }: { params: { id: strin
             </table>
           </div>
         )}
+      </section>
+
+      <section className="mt-12 rounded-2xl p-6" style={{ background: 'rgba(255,99,99,0.04)', border: '1px solid rgba(255,99,99,0.20)' }}>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <div className="text-sm font-semibold" style={{ color: '#FF8B8B' }}>Zona de perigo</div>
+            <div className="text-xs text-fg-muted mt-1 max-w-lg">
+              Excluir o cliente apaga <strong>permanentemente</strong> todos os dados dele
+              (formulários, leads, kanban, prospecção, WhatsApp, integrações e logins). Irreversível.
+            </div>
+          </div>
+          <DeleteTenantButton tenantId={tenant.id} tenantName={tenant.name} />
+        </div>
       </section>
     </main>
   );

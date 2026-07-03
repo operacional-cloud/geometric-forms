@@ -54,6 +54,33 @@ export async function createClientTenant(input: unknown) {
   };
 }
 
+/**
+ * Exclui um cliente (tenant) e TODOS os dados dele. Irreversível.
+ * A exclusão do tenant cascateia forms, leads, kanban, prospecting, whatsapp,
+ * meta-ai e profiles. Além disso, removemos as contas de login (auth.users) dos
+ * usuários vinculados ao cliente.
+ */
+export async function deleteTenant(tenantId: string) {
+  const { data: tenant, error: tErr } = await supabaseAdmin
+    .from('tenants').select('id, name').eq('id', tenantId).maybeSingle();
+  if (tErr) throw new AppError(tErr.message, { status: 500 });
+  if (!tenant) throw new AppError('Cliente não encontrado.', { status: 404 });
+
+  // Usuários (logins) do cliente — capturados antes do delete (o profile some na cascata).
+  const { data: members } = await supabaseAdmin
+    .from('profiles').select('id').eq('tenant_id', tenantId);
+  const userIds = (members || []).map((m: any) => m.id).filter(Boolean);
+
+  const { error: dErr } = await supabaseAdmin.from('tenants').delete().eq('id', tenantId);
+  if (dErr) throw new AppError(`Falha ao excluir cliente: ${dErr.message}`, { status: 500 });
+
+  let deletedUsers = 0;
+  for (const uid of userIds) {
+    try { await supabaseAdmin.auth.admin.deleteUser(uid); deletedUsers++; } catch { /* ignora */ }
+  }
+  return { id: tenantId, name: (tenant as any).name as string, deleted_users: deletedUsers };
+}
+
 export async function listTenants() {
   const { data, error } = await supabaseAdmin
     .from('tenants')
