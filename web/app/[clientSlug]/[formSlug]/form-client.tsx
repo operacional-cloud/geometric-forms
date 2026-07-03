@@ -415,6 +415,7 @@ export function PublicFormClient({ tenant, form }: { tenant: Tenant; form: Form 
                     onChange={(v) => setAnswer(current.id, v)}
                     accent={accent}
                     accentText={accentText}
+                    onEnter={goNext}
                   />
                 </div>
 
@@ -475,12 +476,18 @@ export function PublicFormClient({ tenant, form }: { tenant: Tenant; form: Form 
    ============================================================ */
 
 function FieldInput({
-  field, value, onChange, accent, accentText,
+  field, value, onChange, accent, accentText, onEnter,
 }: {
   field: Field; value: any;
   onChange: (v: any) => void;
   accent: string; accentText: string;
+  onEnter?: () => void;
 }) {
+  // Enter avança pra próxima pergunta (ou finaliza na última). No textarea o
+  // Enter continua quebrando linha (não recebe esse handler).
+  const enterKey = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); onEnter?.(); }
+  };
   switch (field.type) {
     case 'textarea':
       return (
@@ -503,6 +510,7 @@ function FieldInput({
           placeholder={field.placeholder || '0'}
           value={value ?? ''}
           onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
+          onKeyDown={enterKey}
         />
       );
     case 'select':
@@ -599,6 +607,7 @@ function FieldInput({
           placeholder={field.placeholder || '(00) 00000-0000'}
           value={value || ''}
           onChange={(e) => onChange(formatPhoneBR(e.target.value))}
+          onKeyDown={enterKey}
         />
       );
     case 'email':
@@ -612,6 +621,7 @@ function FieldInput({
           placeholder={field.placeholder || 'Digite sua resposta…'}
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
+          onKeyDown={enterKey}
         />
       );
   }
