@@ -68,6 +68,21 @@ export const POST = handleIntegration(async (req, ctx) => {
     throw new ValidationError('Envie `answers` (chaveado por field_id) e/ou name/phone.');
   }
 
+  // Normaliza respostas de múltipla escolha: o Meta manda o TEXTO da opção
+  // (label), não o `value` (opt_a). Casamos por value OU label (case-insensitive)
+  // e gravamos o `value` canônico, pra o score somar certinho.
+  for (const [k, v] of Object.entries(answers)) {
+    const field = fields.find((f: any) => f.id === k);
+    if (!field || !Array.isArray(field.options) || field.options.length === 0) continue;
+    const resolve = (val: any) => {
+      const s = String(val).trim().toLowerCase();
+      const opt = field.options.find((o: any) =>
+        String(o.value).trim().toLowerCase() === s || String(o.label).trim().toLowerCase() === s);
+      return opt ? opt.value : val;
+    };
+    answers[k] = Array.isArray(v) ? v.map(resolve) : resolve(v);
+  }
+
   const lead_score = calculateScore(answers, fields);
   const is_qualified = lead_score >= ((form as any).qualification_threshold ?? 0);
 
