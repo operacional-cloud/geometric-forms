@@ -32,6 +32,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     { href: '/dashboard/kanban', label: 'Kanban', iconKey: 'kanban' },
     { href: '/dashboard/metrics', label: 'Métricas', iconKey: 'metrics' },
     { href: '/dashboard/ai-attendance', label: 'IA de Atendimento', iconKey: 'ai', locked: true },
+    { href: '/dashboard/followup', label: 'Follow-up IA', iconKey: 'followup' },
     { href: '/dashboard/meta-ads-ai', label: 'Meta Ads IA', iconKey: 'ads_ai', locked: true },
     { href: '/dashboard/integrations', label: 'Integrações', iconKey: 'integrations', locked: true },
   ];

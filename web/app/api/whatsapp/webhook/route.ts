@@ -2,6 +2,7 @@ import { processInboundMessage } from '@/lib/server/whatsapp';
 import { supabaseAdmin } from '@/lib/server/supabase-admin';
 import { getMediaBase64 } from '@/lib/server/evolution';
 import { transcribeAudio } from '@/lib/server/gemini';
+import { cancelFollowupForConversation } from '@/lib/server/followup';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -114,6 +115,18 @@ export async function POST(req: Request) {
         text: text.trim(),
         evolutionMessageId,
       });
+
+      if (!isGroup) {
+        const { data: conv } = await supabaseAdmin
+          .from('whatsapp_conversations')
+          .select('id')
+          .eq('remote_jid', remoteJid)
+          .maybeSingle();
+        if (conv) {
+          cancelFollowupForConversation(conv.id).catch(() => {});
+        }
+      }
+
       return Response.json({ ok: true, ...result });
     }
 
@@ -129,27 +142,35 @@ export async function POST(req: Request) {
     }
 
     if (event === 'connection.update' || event === 'CONNECTION_UPDATE') {
-      const state: string = payload?.data?.state || payload?.state || '';
+      const state: string = payload?.data?.state || payload?.state || payload?.data?.connection || '';
       const phone: string | null = payload?.data?.wuid?.replace(/@.*/, '') || null;
       const statusMap: Record<string, string> = {
         open: 'connected',
         connecting: 'connecting',
         close: 'disconnected',
       };
-      const mapped = statusMap[state] || 'failed';
-      if (instanceName) {
+      const mapped = statusMap[state];
+      // IMPORTANTE: só atualiza quando o estado é CONHECIDO. Estado vazio/desconhecido
+      // NÃO derruba a instância (bug anterior: virava 'failed' e a conexão caía/pedia QR
+      // ao qualificar, pois o Baileys emite eventos de conexão ao enviar a 1ª mensagem).
+      if (mapped && instanceName) {
+        const updates: any = {
+          status: mapped,
+          last_event_at: new Date().toISOString(),
+        };
+        // Só mexe em phone/connected_at/qr quando realmente conectou — não apaga dados
+        // por causa de um blip transitório de 'connecting'/'close'.
+        if (mapped === 'connected') {
+          if (phone) updates.phone_number = phone;
+          updates.connected_at = new Date().toISOString();
+          updates.qr_code = null;
+        }
         await supabaseAdmin
           .from('whatsapp_instances')
-          .update({
-            status: mapped,
-            phone_number: phone,
-            connected_at: mapped === 'connected' ? new Date().toISOString() : null,
-            qr_code: mapped === 'connected' ? null : undefined,
-            last_event_at: new Date().toISOString(),
-          })
+          .update(updates)
           .eq('evolution_instance', instanceName);
       }
-      return Response.json({ ok: true });
+      return Response.json({ ok: true, state });
     }
 
     // Evento não-tratado — ack pra Evolution não reenviar
