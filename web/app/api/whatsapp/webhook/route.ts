@@ -2,7 +2,6 @@ import { processInboundMessage } from '@/lib/server/whatsapp';
 import { supabaseAdmin } from '@/lib/server/supabase-admin';
 import { getMediaBase64 } from '@/lib/server/evolution';
 import { transcribeAudio } from '@/lib/server/gemini';
-import { cancelFollowupForConversation } from '@/lib/server/followup';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -115,17 +114,6 @@ export async function POST(req: Request) {
         text: text.trim(),
         evolutionMessageId,
       });
-
-      if (!isGroup) {
-        const { data: conv } = await supabaseAdmin
-          .from('whatsapp_conversations')
-          .select('id')
-          .eq('remote_jid', remoteJid)
-          .maybeSingle();
-        if (conv) {
-          cancelFollowupForConversation(conv.id).catch(() => {});
-        }
-      }
 
       return Response.json({ ok: true, ...result });
     }

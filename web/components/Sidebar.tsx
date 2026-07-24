@@ -7,7 +7,7 @@ import { Logo } from './Logo';
 
 export type SidebarIconKey =
   | 'overview' | 'forms' | 'leads' | 'kanban' | 'metrics'
-  | 'clients' | 'prospecting' | 'whatsapp' | 'ai' | 'ads_ai' | 'integrations' | 'home' | 'followup';
+  | 'clients' | 'prospecting' | 'whatsapp' | 'ai' | 'ads_ai' | 'integrations' | 'home';
 
 export type SidebarItem = {
   href: string;
@@ -101,14 +101,6 @@ const ICONS: Record<string, React.ReactNode> = {
   home: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M3 11l9-8 9 8M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ),
-  followup: (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M4 12a8 8 0 0114.5-4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M20 12a8 8 0 01-14.5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M18 4l1 3.5L15.5 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M6 20l-1-3.5L8.5 15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
 };
